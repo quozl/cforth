@@ -1479,29 +1479,55 @@ alnumber(char *adr, cell len, cell *nhigh, cell *nlow, cell *up)
     u_char c;
     int d;
     int isminus = 0;
-    cell accum = 0;
+#ifdef BITS32
+    long long accum = 0;
+#else
+    long accum = 0;
+#endif
 
     V(DPL) = -100;
-    if( *adr == '-' ) {
-        isminus = 1;
-        len--;
-        ++adr;
-    }
-    for( ; len > 0; len-- ) {
-        c = *adr++;
-        if( c == '.' )
-            V(DPL) = 0;
-        else {
-            if( -1 == (d = digit( (cell)base, c )) )
-                break;
-            ++V(DPL);
-            accum = accum * base + d;
-        }
+    if ( len >= 3 && adr[0] == '\'' && adr[len-1] == '\'') {
+	adr++; len -= 2;
+	for ( ; len > 0; len-- ) {
+	    accum = (accum << 8) | *adr++;
+	}
+    } else {
+	if( len ) {
+	    switch (*adr)
+	    {
+	    case '%': base = 2; len--; adr++; break;
+	    case '#': base = 10; len--; adr++; break;
+	    case '$': base = 16; len--; adr++; break;
+	    }
+	}
+	if( len && *adr == '-' ) {
+	    isminus = 1;
+	    len--;
+	    ++adr;
+	}
+	for( ; len > 0; len-- ) {
+	    c = *adr++;
+	    if( c == '.' )
+		V(DPL) = 0;
+	    else {
+		if( -1 == (d = digit( (cell)base, c )) )
+		    break;
+		++V(DPL);
+		accum = accum * base + d;
+	    }
+	}
     }
     if (V(DPL) < 0)
         V(DPL) = -1;
-    *nlow  = isminus ? -accum : accum;
-    *nhigh = isminus ? -1 : 0;
+    if (isminus)
+	accum = -accum;
+#ifdef BITS32
+    *nlow  = accum & 0xffffffff;
+    *nhigh = (accum >> 32) & 0xffffffff;
+#else
+    *nlow  = accum & 0xffff;
+    *nhigh = (accum >> 16) & 0xffff;
+#endif
     return( len ? 0 : -1 );
 }
 

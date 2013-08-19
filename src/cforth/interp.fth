@@ -56,9 +56,12 @@ nuser 'source-id
       0<  state @  and  if  compile,  else  execute  then    (   )
    else                        ( name$ 0 )
       drop  2dup $number?  if  ( name$ d )
-         2swap 2drop  drop
-	 \ XXX handle double numbers
-         state @  if  [compile] literal  then
+         2swap 2drop           ( d )
+	 dpl @  if
+	    drop  state @  if  [compile] literal  then
+	 else
+	    state @  if  swap [compile] literal [compile] literal  then
+	 then
       else                     ( str )
          $do-undefined         ( )
       then
