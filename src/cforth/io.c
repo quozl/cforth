@@ -63,8 +63,11 @@ emit(u_char c, cell *up)
         V(NUM_LINE)++;
     } else
         V(NUM_OUT)++;
-    if (output_file)
+    if (output_file) {
         (void)putc((char)c, output_file);
+        if ( c == '\r')
+	    (void)fflush(output_file);
+    }
 }
 
 void cprint(char *str, cell *up)
