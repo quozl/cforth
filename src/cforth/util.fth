@@ -199,6 +199,8 @@ defer defxx
    state @  if   postpone ['] postpone (to)  else  ' (to)  then
 ; immediate
 
+' noop to status
+
 : header  ( "name" -- )  safe-parse-word $header  ;
 
 \ ' (set-relocation-bit) to set-relocation-bit
@@ -454,6 +456,8 @@ warning on
 32\ alias l. .         ( l -- )
 : (.s  ( -- )  depth 0 ?do  depth i - 1- pick .  loop  ;
 : .s  ( -- )  ?stack  depth  if  (.s  else  ." Empty "  then  ;
+: showstack  ( -- )  ['] (.s to status  ;
+: noshowstack  ( -- )  ['] noop to status  ;
 
 : ?  ( adr -- )  @ .  ;
 

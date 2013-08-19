@@ -107,8 +107,10 @@ nuser 'source-id
    r> handler !         ( 0 )    \ Restore previous handler
    r> drop              ( 0 )    \ Don't need saved stack pointer
 ;
+defer status
 : prompt  ( -- )
    interactive?  if	\ Suppress prompt if input is redirected to a file
+      status
       state @  if  ."  ] "  else  ." ok "  then
    then
 ;
