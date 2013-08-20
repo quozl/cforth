@@ -9,6 +9,8 @@ fload brackif.fth	\ [IF] and friends
 \ fload savefort.fth
 fload case.fth
 fload th.fth
+fload stresc.fth
+\  alias " s"    \ In case stresc.fth is omitted
 fload format.fth
 fload words.fth
 fload dump.fth

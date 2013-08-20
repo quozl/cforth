@@ -268,7 +268,13 @@ defer exit?  ( -- flag )
 
 : ,"  ( "string" -- )  [char] " parse ",  ;
 
-: ."  ( "string" -- )  postpone (.") ,"  ; immediate
+: ."  ( "string" -- )
+   state @  if
+      postpone (.") ,"
+   else
+      [char] " parse type
+   then
+; immediate
 
 nuser 'abort$
 : (abort")  ( flag -- )
@@ -596,7 +602,8 @@ alias not invert   ( x -- x' )
 : unloop  ( -- )  r>  r> drop r> drop  r> drop  >r  ;
 : blank  ( c-addr u -- )  bl fill  ;
 
-alias " s"
+\ alias " s"
+\ fload stresc.fth
 
 defer pause
 ' noop to pause		\ No multitasking for now
@@ -635,3 +642,6 @@ create nullstring 0 c,
 : u2/  ( n1 -- n2 )  1 rshift  ;
 
 : round-up  ( n boundary -- n' )  1- tuck + swap invert and  ;
+
+: alloc-mem  ( len -- adr )  allocate throw  ;
+: free-mem  ( adr len -- adr )  drop free throw  ;
