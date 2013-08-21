@@ -21,7 +21,7 @@ OPTIMIZE=-O
 RELOCATE=
 # RELOCATE=-DRELOCATE
 
-CONFIG= $(INCS) $(FP) $(RELOCATE) $(SYSCALL) -DBITS32 -DT16
+CONFIG= $(INCS) $(FP) $(RELOCATE) $(SYSCALL) -DBITS32 -DT16 -D_FORTIFY_SOURCE=0
 
 CFLAGS= -g $(OPTIMIZE) $(CONFIG)
 
@@ -97,7 +97,7 @@ kernel.dic: interp.fth meta init.x
 # Forth execution environment, resulting in a smaller kernel.
 
 meta: $(METAOBJS)
-	$(CC) -o $@ $(METAOBJS)
+	$(CC) $(CFLAGS) -o $@ $(METAOBJS)
 
 # meta.o is an object module that is a component of "meta"
 

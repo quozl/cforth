@@ -22,7 +22,12 @@ CFLAGS += -m32
 ifeq ($(OS),Windows_NT)
   API = win32
 else
-  API = linux
+  UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+	API = macos
+ else
+	API = linux
+endif
 endif
 
 # EXTENDSRC is the source file for extensions; it is compiled to extend.o
