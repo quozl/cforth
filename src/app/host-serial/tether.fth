@@ -74,19 +74,21 @@ d# 1000 value trcv-timeout-ms
    dup d# 28 rshift send0  dup d# 21 rshift send1 send3
 ;
 
+: tcmd  ( cmd -- result )  tsend tread  ;
+
 \ Basic target operations
 
-\ Read the top of the target stack.  Mostly useful for debugging
-: target-get  ( -- tval )  h# c7 tsend  tread  ;
+\ Pops and returns the top of the target stack
+: tpop  ( -- tval )  h# c7 tcmd  ;
 
 \ Read a 32-bit number from target address tadr
-: t@  ( tadr -- tval )  tpush  h# c1 tsend  tread  ;
+: t@  ( tadr -- tval )  tpush  h# c1 tcmd  ;
 
 \ Read a 16-bit number from target address tadr
-: tw@ ( tadr -- tval )  tpush  h# c2 tsend  tread  ;
+: tw@ ( tadr -- tval )  tpush  h# c2 tcmd  ;
 
 \ Read an 8-bit number from target address tadr
-: tc@ ( tadr -- tval )  tpush  h# c3 tsend  tread  ;
+: tc@ ( tadr -- tval )  tpush  h# c3 tcmd  ;
 
 \ Write a 32-bit number to target address tadr
 : t!  ( tval tadr -- )  swap tpush  tpush  h# c4 tsend  ;
@@ -103,12 +105,12 @@ d# 1000 value trcv-timeout-ms
 \ Execute the target subroutine at tadr and wait for ACK, but
 \ do not return a result value.  Subroutine arguments must
 \ already have been pushed onto the target stack.
-: texec0  ( tadr -- )  tpush  h# e0 tsend  tread drop  ;
+: texec0  ( tadr -- )  tpush  h# e0 tcmd drop  ;
 
 \ Execute the target subroutine at tadr and wait for ACK,
 \ returning the subroutines result value.  Subroutine arguments
 \ must already have been pushed onto the target stack.
-: texec1  ( tadr -- tval )  tpush  h# e1 tsend  tread  ;
+: texec1  ( tadr -- tval )  tpush  h# e1 tcmd  ;
 
 \ Push the address of the first target scratch buffer onto the
 \ target stack.
@@ -139,8 +141,10 @@ d# 1000 value trcv-timeout-ms
 : sync  ( -- )
    \ Discard any queued characters
    begin  sbuf 1 1 timed-serial-read  0<= until
-   h# cd tsend tread drop
+   h# cd tcmd drop
 ;
+
+: /scratch  ( -- n )  h# ce tcmd  ;
 
 alias tp tpush   \ For interactive convenience
 
