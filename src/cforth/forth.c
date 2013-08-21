@@ -43,7 +43,7 @@ static int compare(u_char *adr1, u_cell len1, u_char *adr2, u_cell len2);
 static void reveal(cell *up);
 static void hide(cell *up);
 static int alnumber(char *adr, cell len, cell *nhigh, cell *nlow, cell *up);
-
+static int split_string(char c, cell *sp, void *up);
 int strlen(const char *);
 
 const token_t freelocbuf[] = { FREELOC, UNNEST};
@@ -1161,6 +1161,10 @@ execute:
     tos = tos ? 0 : OPENFAIL;
     next;
 
+/*$p split-string */ case SPLIT_STRING:  // a1 l1 char -- a1 l2 a1+l2 l1-l2
+    tos = split_string(tos, --sp, up);
+    next;
+
 default:   // Non-primitives - colon defs, constants, etc.
     ascr = (u_char *)XT_FROM_CT(token, up);  // Code field address
     scr  = (cell)*(token_t *)ascr;       // Code field value
@@ -1766,4 +1770,18 @@ ip_canonical(char *adr, cell len, cell *up)   // Canonicalize string "in place"
         c = *p;
         *p++ = (c >= 'A' && c <= 'Z') ? (c - 'A' + 'a') : c;
     }
+}
+
+static int
+split_string(char c, cell *sp, void *up)
+{
+    char *adr = (char *)sp[2];
+    int len = sp[1];
+    int i;
+    for (i=0; i<len; i++)
+	if (adr[i] == c)
+	    break;
+    sp[1] = i;
+    sp[0] = &adr[i];
+    return len-i;
 }
