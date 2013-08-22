@@ -161,21 +161,27 @@ also hidden
    local-buf 8 + 8 d.2 space           ( )
    local-buf d# 16 bounds  do   i c@ emit.  loop
 ;
+
+\ Dump target memory as bytes
 : tdump  ( tadr len -- )
    base @ -rot hex .head  dup 0= if  1+  then
    bounds  ?do  i tdln exit? ?leave  d# 16 +loop
    base !
 ;
+
 : tl-dln  ( tadr -- )  \ Helper
    ??cr dup 8 u.r 2 spaces  tread16   ( )
    local-buf d# 16 bounds  do  i @ .8 4 +loop  space
    local-buf d# 16 bounds  do  i c@ emit.  loop
 ;
+
+\ Dump target memory as 32-bit longwords
 : tldump  ( tadr len -- )
    push-hex l.head
    bounds  ?do   i tl-dln exit? ?leave  d# 16 +loop
    pop-base
 ;
+
 : .4  ( n -- )  <# u# u# u# u# u#> type space  ;  \ Helper
 : tw-dln  ( tadr -- )  \ Helper
    ??cr dup 8 u.r 2 spaces  tread16   ( )
@@ -188,6 +194,8 @@ also hidden
    d# 16 0  do  2 spaces  i ?.n  2 +loop space
    d# 16 0  do    i ?.a  loop  rot +
 ;
+
+\ Dump target memory as 16-bit halfwords
 : twdump  ( tadr len -- )
    push-hex w.head   ( tadr len )
    bounds  ?do   i tw-dln exit? ?leave  d# 16 +loop
