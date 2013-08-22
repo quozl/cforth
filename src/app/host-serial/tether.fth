@@ -8,18 +8,18 @@
 
 hex
 
-h# 10 buffer: sbuf
+h# 10 buffer: serial-buf
 
 \ Receive a byte from the target serial line, timing out after
 \ a configurable number of milliseconds
 d# 1000 value trcv-timeout-ms
 : trcv  ( -- b )
-   sbuf 1 trcv-timeout-ms timed-serial-read  1 <> abort" Read timed out"
-   sbuf c@
+   serial-buf 1 trcv-timeout-ms timed-serial-read  1 <> abort" Read timed out"
+   serial-buf c@
 ;
 
 \ Send a byte over the target serial line
-: tsend  ( b -- )  sbuf c!  sbuf 1 serial-write  ;
+: tsend  ( b -- )  serial-buf c!  serial-buf 1 serial-write  ;
 
 \ Receive a 32-bit number from the target serial line.
 \ Reception ends when an ACK (c0) is received.
@@ -140,7 +140,7 @@ d# 1000 value trcv-timeout-ms
 
 : sync  ( -- )
    \ Discard any queued characters
-   begin  sbuf 1 1 timed-serial-read  0<= until
+   begin  serial-buf 1 1 timed-serial-read  0<= until
    h# cd tcmd drop
 ;
 
