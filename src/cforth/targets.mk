@@ -48,7 +48,11 @@ else
   ifeq ($(UNAME_S),Linux)
     HOSTOBJS += linux-kbd.o
   else
-    HOSTOBJS += getc-kbd.o
+    ifeq ($(UNAME_S),Darwin)
+      HOSTOBJS += linux-kbd.o
+    else
+      HOSTOBJS += getc-kbd.o
+    endif
   endif
 endif
 
