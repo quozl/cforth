@@ -1,0 +1,12 @@
+.*\.o$
+.*\.dic$
+.*\.exe$
+.*\.x$
+.*\.ip$
+.*~$
+/forth$
+/makename$
+/meta$
+/prims.h$
+/vars.h$
+
