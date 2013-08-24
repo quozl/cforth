@@ -78,7 +78,7 @@ forth.o: prims.h vars.h
 FORTHSRCS = misc.fth compiler.fth control.fth postpone.fth \
             util.fth rambuffer.fth config.fth comment.fth \
             case.fth th.fth format.fth words.fth dump.fth \
-            patch.fth brackif.fth decompm.fth decomp.fth \
+            patch.fth brackif.fth decompm.fth decomp2.fth \
             callfind.fth needs.fth sift.fth stringar.fth \
             size.fth ccalls.fth split.fth rstrace.fth
 

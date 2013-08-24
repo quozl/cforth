@@ -2,13 +2,12 @@
 \ : true  -1  ;
  0 constant false
 -1 constant true
-false
-: [ false state !  ; immediate
+: [ false  state !  ; immediate
 : ] true state !  ;
 : literal  ( n -- )
    dup  here branch!  here branch@   ( n n' )
    over =  if
-      compile (lit16)  here branch!  /branch allot
+      compile (wlit)  here branch!  /branch allot
    else
       compile (lit) ,
    then
@@ -119,18 +118,23 @@ defer status
 ;
 : clear  ( ?? -- )  sp0 @ sp!  ;
 defer .error
-: quit  ( -- )
-   \ XXX We really should clean up any open input files here...
-   0 complevel !
-   rp0 @ rp!
+nuser 'exit-interact?
+: interact  ( -- )
    tib /tib 0 set-input
    [compile] [
    begin
       depth 0<  if  ." Stack Underflow" cr  clear  then
       prompt
    refill  while
-      ['] (interpret catch  ??cr  ?dup if  .error  clear  then
-   repeat
+      ['] (interpret catch  ??cr  ?dup if  [compile] [  .error  ( clear ) then
+   'exit-interact? @ until then
+   false 'exit-interact? !
+;
+: quit  ( -- )
+   \ XXX We really should clean up any open input files here...
+   0 complevel !
+   rp0 @ rp!
+   interact
    bye
 ;
 

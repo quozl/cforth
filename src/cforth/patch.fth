@@ -94,7 +94,7 @@
 \t16       =  if                         ( newn oldn end curr )
 \t16          nip nip ! exit             ( -- )
 \t16       then                          ( newn oldn end curr )
-\t16       dup token@ ['] (lit16) =  if  ( newn oldn end curr )
+\t16       dup token@ ['] (wlit) =  if   ( newn oldn end curr )
 \t16          ta1+                       ( newn oldn end curr' )
 \t16          dup <w@                    ( newn oldn end curr curr@ )
 \t16          3 pick =  if               ( newn oldn end curr )

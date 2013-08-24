@@ -99,6 +99,14 @@ decimal
 : <<  ( n count -- n' )  shift  ;
 : >>  ( n count -- n' )  negate shift  ;
 
+: cf@  ( acf -- n )  
+\t16 w@
+\t32  @
+;
+: cf!  ( n acf -- )
+\t16 w!
+\t32  !
+;
 : unum@  ( apf -- user# )
 \t16 w@
 \t32  @
@@ -110,9 +118,7 @@ decimal
 decimal
 : word-type  ( acf -- word-type )
    dup primitive?  if  drop -1 ( code word ) exit  then
-\t16 w@
-\t32  @
-   dup primitive?  if  drop -1 ( code word )  then
+   cf@ dup primitive?  if  drop -1 ( code word )  then
 ;
 : ualloc  ( size -- user-number )  #user @  swap #user +!  ;
 : nuser  \ name  ( -- )
@@ -180,20 +186,20 @@ defer defxx
 
 : value  ( "name" n -- )
    create             ( n )
+   (value) here body> cf!
+
    #user @  /n ,unum  ( n user# )
    up@ + !            ( )
-   does> >user @
 ;
-0 value myval
+0 value isvalue
 
-: useradr  ( acf type -- data-adr )  drop >body >user  ;
-: (to)  ( n acf -- data-adr )
-   dup word-type               ( n acf code-field-word )
-   dup ['] myval word-type  =  if  useradr !      exit  then
-   dup ['] defxx word-type  =  if  useradr token! exit  then
-   dup ['] #user word-type  =  if  useradr !      exit  then
-   dup ['] forth word-type  =  if  useradr token! exit  then
-   drop >body !
+: (to)  ( n xt -- data-adr )
+   dup >body  swap cf@         ( n 'body cf )
+   dup (value)      =  if  drop >user !      exit  then
+   dup (defer)      =  if  drop >user token! exit  then
+   dup (user)       =  if  drop >user !      exit  then
+   dup (vocabulary) =  if  drop >user token! exit  then
+   drop !
 ;
 : to  ( "name" [ val ] -- )	\ val is present only in interpret state
    state @  if   postpone ['] postpone (to)  else  ' (to)  then
@@ -645,3 +651,11 @@ create nullstring 0 c,
 
 : alloc-mem  ( len -- adr )  allocate throw  ;
 : free-mem  ( adr len -- adr )  drop free throw  ;
+
+alias purpose: \
+alias headerless noop
+alias headers noop
+alias (emit emit
+alias (type type
+: upc  ( char -- char' )  $20 invert and  ;
+alias #-buf pad

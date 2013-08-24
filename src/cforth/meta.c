@@ -114,6 +114,7 @@ init_variables(int unum, cell *up)
     V(CAPS) = -1;
     V(THISDEF) = 0;
     V(COMPLEVEL) = 0;
+    V(LESSIP) = V(CNT) = 0;
 }
 
 /*

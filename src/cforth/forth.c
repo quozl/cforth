@@ -3,6 +3,8 @@
 
 // prims.h and vars.h must be included externally - see the makefile
 
+#define DEBUGGER
+
 #include <stdio.h>
 #include "forth.h"
 
@@ -80,6 +82,7 @@ extern void write_dictionary(char *name, int len, char *dict, int dictsize, cell
 extern void memfree(char *, cell *up);
 extern char * memresize(char *, u_cell, cell *up);
 
+// int printing = 0;
 // Execute an array of Forth execution tokens.
 inner_interpreter(up)
     cell *up;
@@ -98,6 +101,18 @@ inner_interpreter(up)
 #endif
 
     while(1) {
+#ifdef DEBUGGER
+	if (V(LESSIP)
+	    && (token_t *)V(LESSIP) <= ip
+	    && (token_t *)V(IPGREATER) > ip
+	    && ++(V(CNT)) == 2)
+	{
+	    V(CNT) = 0;
+	    token = *(token_t *) &V(TICK_DEBUG);
+//	    printing = 3;
+	    goto doprim;
+	}
+#endif
         token = *ip++;
 
 doprim:
@@ -170,11 +185,11 @@ doprim:
     next;
 
 /*$p ip! */     case IP_STORE:
-    *--rp = (token_t *)tos;
+    *rp = (token_t *)tos;
     loadtos;
     next;
 
-/*$p ip@ */     case IP_FETCH:  push((cell)(*rp++) );    next;
+/*$p ip@ */     case IP_FETCH:   push((cell)(*rp) );    next;
 
     /* We don't have to account for the tos in a register, because */
     /* push has already pushed tos onto the stack before */
@@ -608,7 +623,7 @@ execute:
     next;
 
 #ifdef T16
-/*$p (lit16) */ case PAREN_LIT16:
+/*$p (wlit) */ case PAREN_LIT16:
     push( *(branch_t *)ip );
     ip   = (token_t *)((u_char *)ip + sizeof(branch_t));
     next;
@@ -1171,7 +1186,8 @@ default:   // Non-primitives - colon defs, constants, etc.
     ascr += sizeof(token_t);             // Body address
     switch (scr) {
 
-/*$c (:) */         case DOCOLON:  *--rp = ip;  ip = (token_t *)ascr;  next;
+/*$c (:) */         case DOCOLON:  
+    *--rp = ip;  ip = (token_t *)ascr;  next;
 /*$c (constant) */  case DOCON:
     push(nfetch((cell *)ascr));
     next;
@@ -1187,6 +1203,7 @@ default:   // Non-primitives - colon defs, constants, etc.
 
 /*$c (vocabulary) */case DOVOC:   tokstore(token, (xt_t)&V(CONTEXT));  next;
 /*$c (code) */      case DOCODE:  (*(void (*) ())ascr)();  next;
+/*$c (value) */     case DOVALUE:  push( *(cell *)(*(unum_t *)ascr + (cell)up) );  next;
 
 default:    /* DOES> word */
     /* Push parameter field address */
@@ -1286,6 +1303,10 @@ execute_word(char *s, cell *up)
 /*$u locnum     e LOCNUM:       */
 /*$u 'sysptr    e SYSPTR:       */
 /*$u boundary   e BOUNDARY:     */
+/*$u <ip        e LESSIP:       */
+/*$u ip>        e IPGREATER:    */
+/*$u cnt        e CNT:          */
+/*$u 'debug     e TICK_DEBUG:   */
 /*$t current    e CURRENT:      */
 /*$t context    e CONTEXT:      *$UUUUUUUUUUUUUUU */ /* 15 extra voc slots */
 
@@ -1782,6 +1803,6 @@ split_string(char c, cell *sp, void *up)
 	if (adr[i] == c)
 	    break;
     sp[1] = i;
-    sp[0] = &adr[i];
+    sp[0] = (cell)&adr[i];
     return len-i;
 }

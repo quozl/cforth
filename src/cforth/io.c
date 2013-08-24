@@ -58,16 +58,24 @@ init_io(int argc, char **argv, cell *up)
 
 emit(u_char c, cell *up)
 {
+    int advance;
+
+    if (output_file) {
+	advance = ansi_emit(c, output_file);
+	if (advance == -1) {
+	    (void)putc((char)c, output_file);
+	    if ( c == '\r')
+		(void)fflush(output_file);
+	    advance = 1;
+	}
+    } else {
+	advance = 1;
+    }
     if ( c == '\n' || c == '\r' ) {
         V(NUM_OUT) = 0;
         V(NUM_LINE)++;
     } else
-        V(NUM_OUT)++;
-    if (output_file) {
-        (void)putc((char)c, output_file);
-        if ( c == '\r')
-	    (void)fflush(output_file);
-    }
+        V(NUM_OUT) += advance;
 }
 
 void cprint(char *str, cell *up)
