@@ -1,13 +1,13 @@
 \ Literal strings supporting embedded escape sequences and hex bytes
 
 decimal
-0 value sbuf  0 value /sbuf
+0 value $buf  0 value /$buf
 : add-char  ( char -- )
-   sbuf /sbuf + c!  1 /sbuf + to /sbuf
+   $buf /$buf + c!  1 /$buf + to /$buf
 ;
-: $>sbuf  ( adr len -- )
-   tuck  sbuf /sbuf +  swap move   ( len )
-   /sbuf +  to /sbuf               ( )
+: $>$buf  ( adr len -- )
+   tuck  $buf /$buf +  swap move   ( len )
+   /$buf +  to /$buf               ( )
 ;
 : nextchar  ( adr len -- false | adr' len' char true )
    dup  0=  if  nip exit  then   ( adr len )
@@ -41,10 +41,10 @@ decimal
    source  >in @  /string  if  c@  1 >in +!  else  drop -1  then
 ;
 : get-escaped-string  ( -- adr len )
-   'source @ >in @ +  to sbuf  0 to /sbuf
+   'source @ >in @ +  to $buf  0 to /$buf
    begin
-      [char] " parse   $>sbuf
-      get-char  dup bl <=  if  drop sbuf /sbuf exit  then  ( char )
+      [char] " parse   $>$buf
+      get-char  dup bl <=  if  drop $buf /$buf exit  then  ( char )
       case
          [char] n of  control J          add-char  endof
          [char] r of  control M          add-char  endof
