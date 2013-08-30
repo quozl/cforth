@@ -8,18 +8,18 @@
 
 hex
 
-h# 10 buffer: serial-buf
+h# 10 buffer: tbuf
 
 \ Receive a byte from the target serial line, timing out after
 \ a configurable number of milliseconds
 d# 1000 value trcv-timeout-ms
 : trcv  ( -- b )
-   serial-buf 1 trcv-timeout-ms timed-serial-read  1 <> abort" Read timed out"
-   serial-buf c@
+   tbuf 1 trcv-timeout-ms timed-serial-read  1 <> abort" Read timed out"
+   tbuf c@
 ;
 
 \ Send a byte over the target serial line
-: tsend  ( b -- )  serial-buf c!  serial-buf 1 serial-write  ;
+: tsend  ( b -- )  tbuf c!  tbuf 1 serial-write  ;
 
 \ Receive a 32-bit number from the target serial line.
 \ Reception ends when an ACK (c0) is received.
@@ -100,7 +100,23 @@ d# 1000 value trcv-timeout-ms
 : tc! ( tval tadr -- )  swap tpush  tpush  h# c6 tsend  ;
 
 \ Tell the target communications stub to exit
-: target-exit  ( -- )  h# c8 tsend  ;
+: texit  ( -- )
+   h# c8 tsend
+   tbuf 1 d# 1000 timed-serial-read  1 =  if
+      tbuf c@ dup  h# c0  if
+	 drop  ." Tether loop reconnected" cr
+      else
+[ifdef] display
+	 ." Displaying" cr
+	 emit
+	 display
+[else]
+         drop
+[then]
+      then
+   then
+;
+
 
 \ Execute the target subroutine at tadr and wait for ACK, but
 \ do not return a result value.  Subroutine arguments must
@@ -138,9 +154,16 @@ d# 1000 value trcv-timeout-ms
    bounds ?do  trcv i c!  loop  ( )  
 ;
 
+: tmove-in  ( tadr hadr len -- )  rot tpush tin  ;
+: tmove-out  ( hadr tadr len -- )  swap tpush tout  ;
+: tin-s0  ( hadr len -- )  tscratch0  tin  ;
+: tin-s1  ( hadr len -- )  tscratch1  tin  ;
+: tout-s0  ( hadr len -- )  tscratch0  tout  ;
+: tout-s1  ( hadr len -- )  tscratch1  tout  ;
+
 : sync  ( -- )
    \ Discard any queued characters
-   begin  serial-buf 1 1 timed-serial-read  0<= until
+   begin  tbuf 1 1 timed-serial-read  0<= until
    h# cd tcmd drop
 ;
 
