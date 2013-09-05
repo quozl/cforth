@@ -69,7 +69,11 @@ main(int argc, char **argv)
 	}
 	(void)signal(caught, signal_handler);
     }
-    retval = execute_word("quit", up);
+    do {
+	retval = execute_word("quit", up);
+	if (retval != -1 && retval != 0)
+	    break;
+    } while (next_arg(up));
     restoremode();
     // -1 is the return value for "bye"; map it to 0 process exit status
     exit(retval == -1 ? 0 : retval);

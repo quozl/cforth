@@ -27,8 +27,13 @@ FILE *open_next_file();
 int gargc;
 char **gargv;
 
+#define STRINGINPUT (FILE *) -1
+
+int
 isinteractive()
 {
+    if ( input_file == STRINGINPUT )
+	return 0;
     return isatty(fileno(input_file));
 }
 
@@ -93,7 +98,6 @@ void alerror(char *str, int len, cell *up)
     V(NUM_OUT) = 0;
 }
 
-#define STRINGINPUT (FILE *) -1
 char *strptr;
 
 int
@@ -196,6 +200,13 @@ open_next_file(cell *up)
         }
     }
     return((FILE *)0);
+}
+
+int
+next_arg(cell *up)
+{
+    input_file = open_next_file(up);
+    return input_file != (FILE *)0;
 }
 
 cell

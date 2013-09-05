@@ -16,6 +16,7 @@ prepare_dictionary(int *argcp, char *(*argvp[]))
     u_char *here;
     u_char *xlimit;
     int dict_size;
+    u_char *extension;
 
     char *dictionary_file = "";
 
@@ -24,7 +25,8 @@ prepare_dictionary(int *argcp, char *(*argvp[]))
 
     xlimit = &origin[MAXDICT];
     if(*argcp < 2
-    ||  strcmp(strrchr((*argvp)[1],'.'), ".dic") != 0 ) {
+       || (extension = strrchr((*argvp)[1],'.')) == NULL
+       || strcmp(extension, ".dic") != 0 ) {
 	dictionary_file = is_readable("app.dic") ? "app.dic" : DEFAULT_EXE;
     } else {
         dictionary_file = (*argvp)[1];
