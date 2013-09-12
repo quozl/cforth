@@ -84,6 +84,7 @@ extern char * memresize(char *, u_cell, cell *up);
 
 // int printing = 0;
 // Execute an array of Forth execution tokens.
+int
 inner_interpreter(up)
     cell *up;
 {
@@ -1252,7 +1253,7 @@ execute_word(char *s, cell *up)
         return(-2);
     }
 
-    execute_xt(xt, up);
+    return execute_xt(xt, up);
 }
 
 /* Forth variables */
