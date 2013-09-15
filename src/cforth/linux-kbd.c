@@ -99,6 +99,7 @@ int ansi_emit(int c, FILE *fd)
 		ansi_state = 2;
 	    else {
 		putc(c,fd);
+                (void)fflush(fd);
 		return 1;
 	    }
 	break;
@@ -117,7 +118,6 @@ int ansi_emit(int c, FILE *fd)
 	break;
     }
     putc(c,fd);
-    if ( c == '\r')
-	(void)fflush(fd);
+    (void)fflush(fd);
     return 0;
 }
