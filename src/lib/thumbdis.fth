@@ -29,16 +29,18 @@ defer thumb-op@        \ How to access the instruction stream
    2swap 2drop                ( $ )
 ;
 
-: to-op  ( namelen -- )
+: to-arg  ( namelen -- )
    \ Advance to argument field
    d# 8 over - 0 max  spaces  ( )
 ;
 
 \ Given a string containing instruction names separated
 \ by spaces, display the one selected by "index"
-: .opx  ( adr len index -- )
+: (.op)  ( adr len index -- )
    select-substring  tuck type  ( name-len )
-   to-op
+;
+: .opx  ( adr len index -- )
+   (.op) to-arg
 ;
 : .op  ( adr len index -- )  5 spaces .opx  ;
 
@@ -248,6 +250,11 @@ defer thumb-op@        \ How to access the instruction stream
    " BKPT" 0 .op
    8 .soffset
 ;
+: ?.s  ( len -- )  4 op-bit  if  ." S" 1+  then  to-arg  ;
+: .ops  ( adr len -- )
+   tuck type  ( len )   ?.s
+;
+0 [if]
 : .shift  ( count type -- )
    case
       0 of  ." LSL "  endof
@@ -260,11 +267,6 @@ defer thumb-op@        \ How to access the instruction stream
 : .xshift
    6 2 op2-bits  #12 3 op2-bits  2 lshift or
    4 2 op2-bits  .shift
-;
-: .ops  ( adr len -- )
-   tuck type  ( len )
-   4 op-bit  if  ." S" 1+  then
-   to-op
 ;
 : .dprs
    .ops
@@ -282,7 +284,6 @@ defer thumb-op@        \ How to access the instruction stream
 : .adcr " ADC" .dprs  ; \ a
 : .sbcr " SBC" .dprs  ; \ b
 
-0 [if]
 : .addbi  " ADD"  .dpbi  ; \ 0  ADR if Rn is PC
 : .movbi  " MOV"  .dpbi  ; \ 4
 : .subbi  " SUB"  .dprs  ; \ a  ADR if Rn is PC
@@ -296,12 +297,13 @@ defer thumb-op@        \ How to access the instruction stream
 [then]
 
 
+: ifthn-op-field  4 4 op-bits  ;
 : ifthn
    0 4 op-bits  if
       " IT" 0 .op
-      0 4 op-bits .x ., 4 4 op-bits .x
+      0 4 op-bits .x ., ifthn-op-field .x
    else
-      " NOP YIELD WFE WFI SEV" 4 4 op-bits .op
+      " NOP YIELD WFE WFI SEV" ifthn-op-field .op
    then
 ;
 : .???  ." ???"  ;
@@ -400,18 +402,94 @@ defer thumb-op@        \ How to access the instruction stream
 
 : xrd  ( -- n )  8 4 op2-bits  ;
 : xrn  ( -- n )  0 4 op-bits  ;
+: xdp-op  ( -- n )  5 4 op-bits  ;
+: thumb-imm12  ( -- n )
+   0 8 op2-bits  #12 3 op2-bits  bwjoin  #10 op-bit  if  $800 or  then
+;
+: thumb-imm16  ( -- n )  thumb-imm12  xrn #12 lshift or  ;
+: thumb-expand-immed  ( -- n )
+   thumb-imm12 
+   dup $100 <  if  exit  then
+   dup $200 <  if  $ffff and  0       2dup  bljoin  exit  then
+   dup $300 <  if  $ffff and  0 swap  2dup  bljoin  exit  then
+   dup $400 <  if  $ffff and  dup     2dup  bljoin  exit  then
+
+   ( n )
+   dup $7f and $80 or          ( n 1bcdefgh )
+   #32 rot 7 rshift - lshift   ( n )
+;
+: .xdp-tst  ( adr len -- )  0 .opx  xrn .reg,  thumb-expand-immed .#n  ;
+: .xdp-mov  ( adr len -- )    .ops  xrd .reg,  thumb-expand-immed .#n  ;
+: .xdp-add  ( -- )
+   xrn $f =  if
+      " ADR" 0 .opx  xrd .reg, 
+   else
+      " ADD" 0 .opx  xrd .reg, xrn .reg,
+   then
+   thumb-imm12 .#n
+;
+: .xdp-sub  ( -- )
+   xrn $f =  if
+      " ADR" 0 .opx  xrd .reg, thumb-imm12 negate .#n
+   else
+      " SUB" 0 .opx  xrd .reg, xrn .reg,  thumb-imm12 negate .#n   
+   then
+;
+: .movbi  ( adr len -- )  0 .opx  xrd .reg,  thumb-imm16 .#n  ;
+: .sat   ( -- adr len )  0 .opx  .???  ;
+: .sat16  ( -- adr len )  0 .opx  .???  ;
+: lsbit  ( -- n ) 6 2 op2-bits #12 3 op2-bits 2 lshift or  ;
+: .bfx   ( adr len -- )
+   0 .opx  xrd .reg, xrn .reg,
+   lsbit .#n .,
+   0 5 op2-bits 1+ .#n
+;
+: .bfi   ( -- )
+   xrn $f =  if
+      " BFC" 0 .opx  xrd .reg,
+   else
+      " BFI" 0 .opx  xrd .reg, xrn .reg,
+   then
+   lsbit .#n .,
+   0 5 op2-bits lsbit - 1+ .#n
+;
+
+: .xdb-bin-imm  ( -- )
+   4 op-bit  if  ." bit 4 = 1 in binary immediate ???" exit  then
+   xdp-op   case
+      $0  of  .xdp-add         endof
+      $2  of  " MOVW"   .movbi endof
+      $5  of  .xdp-sub         endof
+      $6  of  " MOVT"   .movbi endof
+      $8  of  " SSAT"   .sat   endof
+      $9  of  " SSAT16" .sat16 endof
+      $a  of  " SBFX"   .bfx   endof
+      $b  of  .bfi             endof
+      $c  of  " USAT"   .sat   endof
+      $d  of  " USAT16" .sat16 endof
+      $e  of  " UBFX"   .bfx   endof
+      ( default )  .???
+   endcase
+;
 : .xdp
    9 op-bit  if
-      " XDPBinaryImmediate"
+      .xdb-bin-imm
    else
+      \ XDPModifiedImmediate
       xrd $f =  if
-         " " 2drop
-      else
+         xdp-op  0 = if  " TST" .xdp-tst exit  then
+         xdp-op  4 = if  " TEQ" .xdp-tst exit  then
+         xdp-op  8 = if  " CMN" .xdp-tst exit  then
+         xdp-op $d = if  " CMP" .xdp-tst exit  then
       then
 
-      " XDPModifiedImmediate"
+      xrn $f =  if
+         xdp-op 2 = if  " MOV"  .xdp-mov exit  then
+         xdp-op 3 = if  " MVN"  .xdp-mov exit  then
+      then
+      " AND BIC ORR ORN EOR    ADD  ADC SBC  SUB RSB  " xdp-op select-substring .ops
+      xrd .reg,  xrn .reg, thumb-expand-immed .#n
    then
-   0 .opx  .???
 ;
 : opf0
    .instruction2
@@ -491,4 +569,4 @@ base !
    begin  end-dis? 0=  while  dis1  repeat	 
 ;
 
-: dis  ( adr -- )   to dis-pc  +dis  ;
+: dis  ( adr -- )  1 invert and  to dis-pc  +dis  ;
