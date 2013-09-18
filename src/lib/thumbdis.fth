@@ -31,7 +31,7 @@ defer thumb-op@        \ How to access the instruction stream
 
 : to-arg  ( namelen -- )
    \ Advance to argument field
-   d# 8 over - 0 max  spaces  ( )
+   d# 8 swap - 0 max  spaces  ( )
 ;
 
 \ Given a string containing instruction names separated
@@ -78,7 +78,7 @@ defer thumb-op@        \ How to access the instruction stream
 : .soffset  ( #bits -- )  0 swap op-bits  .# s.  ;
 
 : .taddr  ( #bits -- )
-   0 swap op-bits  .# dup s.
+   0 swap op-bits  2* .# dup s.
    ." ( " arm-pc + dup 1 invert and .x
    1 and  if ." T " then  ." )"  \ T for thumb mode
 ;
@@ -94,7 +94,14 @@ defer thumb-op@        \ How to access the instruction stream
 : .pc,  .pc .,  ;
 
 \ Display a register number
-: .reg   ( reg# -- )  ." R" push-decimal (.) type pop-base  ;
+: .reg   ( reg# -- )
+   case
+      d# 15 of  ." PC"  endof
+      d# 14 of  ." LR"  endof
+      d# 13 of  ." SP"  endof
+      dup ." R" push-decimal (.) type pop-base
+   endcase
+;
 
 \ Display a register number followed by a comma
 : .reg,  ( reg# -- )  .reg .,  ;
@@ -112,23 +119,13 @@ defer thumb-op@        \ How to access the instruction stream
 : .r6   6 .r#   ;
 : .r8,  8 .r#,  ;
 
-\ Display a register number including the high registers
-: .rh    ( reg# -- )
-   case
-      d# 15 of  ." PC"  endof
-      d# 14 of  ." LR"  endof
-      d# 13 of  ." SP"  endof
-      dup .reg
-   endcase
-;
-
 \ Display high register from the field at bit# 0
 \ Its high bit is in bit 7
-: .rh0   ( bit# -- )  0 3 op-bits  7 op-bit  if 8 or  then  .rh  ;
+: .rh0   ( bit# -- )  0 3 op-bits  7 op-bit  if 8 or  then  .reg  ;
 
 \ Display high register from the field at bit# 3
 \ Its high bit is adjacent to its low bits (in bit 6)
-: .rh3   ( -- )  3 4 op-bits  .rh  ;
+: .rh3   ( -- )  3 4 op-bits  .reg  ;
 
 \ Display a list of registers
 : .{rlist
@@ -143,8 +140,32 @@ defer thumb-op@        \ How to access the instruction stream
    drop
 ;
 
+\ Display a list of registers
+: .{rlist16
+   ." {"  op2                      ( rembits )
+   #16 0  do                       ( rembits )
+      dup 1 and  if                ( rembits )
+         i .reg                    ( rembits )
+         dup 2/  if  .,  then      ( rembits )
+      then                         ( rembits )
+      2/                           ( rembits' )
+   loop                            ( rembits )
+   drop
+;
+
+: f1addsub  ( -- )
+   " ADD SUB" 9 op-bit .op
+   .r0,  .r3,
+   #10 op-bit  if
+      6 3 op-bits .#n
+   else
+      .r6
+   then
+;
+
 \ Display instructions from various format groups
 : fmt1   \ e.g. LSL  R1,R2,#24
+   op1 3 =  if  f1addsub  exit  then
    " LSL LSR ASR" op1 .op
    .r0, .r3, push-decimal .offset5 pop-base
 ;
@@ -212,7 +233,7 @@ defer thumb-op@        \ How to access the instruction stream
 ;
 : fmt16  \ e.g. BEQ #1234
    8 .bop
-   .offset8
+   8 .taddr
 ;
 : fmt17  \ e.g. SWI #24
    " SWI" 0 .op
@@ -220,19 +241,20 @@ defer thumb-op@        \ How to access the instruction stream
 ;
 : fmt18  \ e.g. B #1234
    " B" 0 .op
-   0 #11 .taddr
+   #11 .taddr
 ;
 : fmt19  \ Complicated by THUMB-2
    .instruction 
 ;
 
+: ldst-bit  ( -- flag )  4 op-bit  ;
 : xtnd
    " SXTH SXTB UXTH UXTB" #10 2 op-bits .op
    .r0, .r3
 ;
 : cps  \ 1011 0110 011 Im 0 0 I F
    \ XXX should check that  5 3 op-bits  3 =
-   " CPSID CPSIE" 4 op-bit .op
+   " CPSID CPSIE" ldst-bit .op
    1 op-bit if ." I" then
    0 op-bit if ." F" then
 ;
@@ -254,7 +276,13 @@ defer thumb-op@        \ How to access the instruction stream
 : .ops  ( adr len -- )
    tuck type  ( len )   ?.s
 ;
-0 [if]
+: xrt  ( -- reg# )  #12 4 op2-bits  ;
+: ximm2  ( -- shift )  4 2 op2-bits  ;
+: xrm  ( -- reg# )  0 4 op2-bits  ;
+: xrd  ( -- n )  8 4 op2-bits  ;
+: xrn  ( -- n )  0 4 op-bits  ;
+: xdp-op  ( -- n )  5 4 op-bits  ;
+
 : .shift  ( count type -- )
    case
       0 of  ." LSL "  endof
@@ -264,16 +292,18 @@ defer thumb-op@        \ How to access the instruction stream
    endcase
    .d
 ;
-: .xshift
+: .xrmshift
+   xrm .reg  
+   .,
    6 2 op2-bits  #12 3 op2-bits  2 lshift or
    4 2 op2-bits  .shift
 ;
+0 [if]
 : .dprs
    .ops
-   8 4 op2-bits .rh .,
-   0 4 op-bits .rh .,
-   0 4 op2-bits .rh .,
-   .xshift
+   xrd .reg .,
+   xrn .reg .,
+   .xrmshift
 ;
 : .andr " AND" .dprs  ; \ 0  TST if Rd is PC
 : .bicr " BIC" .dprs  ; \ 1
@@ -298,27 +328,90 @@ defer thumb-op@        \ How to access the instruction stream
 
 
 : ifthn-op-field  4 4 op-bits  ;
-: ifthn
-   0 4 op-bits  if
+: ifthn  ( -- )
+   xrn  if
       " IT" 0 .op
-      0 4 op-bits .x ., ifthn-op-field .x
+      xrn .x ., ifthn-op-field .x
    else
       " NOP YIELD WFE WFI SEV" ifthn-op-field .op
    then
 ;
 : .???  ." ???"  ;
+: ximm8  ( -- n )  0 8 op2-bits  ;
+: ?.ximm8  ( -- )  ximm8  if  ., ximm8 .#n  then   .]  ; 
+: .ldstdual  ( -- )
+   " STREX LDREX" ldst-bit .opx
+   xrd .reg,  xrt .reg,  .[ xrn .reg  ?.ximm8
+;
+: .ldstx  ( -- )
+   " STREX LDREX" ldst-bit .opx
+   xrd .reg,  xrt .reg,  .[ xrn .reg  ?.ximm8
+;
+: .ldstxbh  ( -- )
+   4 op2-bit  if
+      " STREXH LDREXH"
+   else
+      " STREXB LDREXB"
+   then
+   ldst-bit .opx
+   xrm .reg,  xrt .reg, .[ xrn .reg .]
+;
+: .tb  ( -- )
+   " TBB TBH" 4 op2-bit .opx
+   xrn .reg, xrm .reg
+   4 op2-bit  if  ." ,LSL #1"  then
+   .]
+;
+: .ldstxtb  ( -- )
+   8 op-bit  5 op-bit  or  if  .ldstdual exit  then
+   7 op-bit  if
+      6 op2-bit  if  .ldstxbh  else  .tb  then
+   else
+      .ldstx
+   then
+;
+: .ldstm  ( -- )
+   xrn #13 =  5 op-bit 0<> and  if
+      " PUSH POP" ldst-bit .opx        
+   else
+      8 op-bit  if  " STMDB LDMDB"  else  " STM LDM"  then
+      ldst-bit .opx
+      xrn .reg
+      5 op-bit  if  ." !"  then
+      ., 
+   then
+   .{rlist16 .}
+;
 : ldst
    .instruction2
-   6 op-bit  if
-      " LDSTdual_excl_table_branch" 0 .opx  .???
-   else
-      " STM LDM" 4 op-bit .opx
-      .rh0  ., .???
-   then
+   6 op-bit  if  .ldstxtb  else  .ldstm  then
+;
+: .dp-common  ( -- )
+   " AND BIC ORR ORN EOR    ADD  ADC SBC  SUB RSB  " xdp-op select-substring .ops
+   xrd .reg,  xrn .reg,
+;
+
+: .dp-tst  ( adr len -- )  0 .opx  xrn .reg,  .xrmshift  ;
+: .dp-mov  ( adr len -- )  0 .opx  xrd .reg,  .xrmshift  ;
+: .pkh  ( -- )
+   " PKHBT PKHTB" 4 op2-bit .opx
+   xrd .reg,  xrn .reg,
+   .xrmshift
 ;
 : dps
    .instruction2
-   " Shifted_register" 0 .opx  .???
+   xrd $f =  if
+      xdp-op  0 = if  " TST" .dp-tst exit  then
+      xdp-op  4 = if  " TEQ" .dp-tst exit  then
+      xdp-op  8 = if  " CMN" .dp-tst exit  then
+      xdp-op $d = if  " CMP" .dp-tst exit  then
+   then
+   xrn $f =  if
+      xdp-op 2 = if  " MOV"  .dp-mov exit  then
+      xdp-op 3 = if  " MVN"  .dp-mov exit  then
+   then
+   xdp-op 6 =  if  .pkh exit  then
+   .dp-common .xrmshift
 ;
 : copr
    .instruction2
@@ -358,18 +451,18 @@ defer thumb-op@        \ How to access the instruction stream
 ;
 : .msr
    " MSR" 0 .opx
-   .specreg ., 0 4 op-bits .rh
+   .specreg ., xrn .reg
 ;
 : .mrs
    " MRS" 0 .opx
-   0 4 op-bits .rh ., .specreg
+   xrn .reg ., .specreg
 ;
 : .undef  " ???" 0 .opx  ;
 : .hint
    8 3 op2-bits 0<>  if  " CPS" 0 .opx  .???  exit  then
-   4 4 op2-bits $f =  if  " DBG" 0 .opx  0 4 op2-bits .#n  exit  then
+   4 4 op2-bits $f =  if  " DBG" 0 .opx  xrm .#n  exit  then
    3 5 op2-bits 0<>  if  .undef  exit  then
-   " NOP YIELD WFE WFI SEV ? ? ?" 0 4 op2-bits .opx
+   " NOP YIELD WFE WFI SEV ? ? ?" xrm .opx
 ;
 : .msc
    4 4 op2-bits  dup 6 <  if
@@ -391,7 +484,7 @@ defer thumb-op@        \ How to access the instruction stream
    7 3 op-bits 7 =  if
       5 2 op-bits  case
 	 0 of  .msr  endof
-	 1 of  4 op-bit  if  .msc  else  .hint  then  endof
+	 1 of  ldst-bit  if  .msc  else  .hint  then  endof
 	 2 of  .undef  endof
 	 3 of  .mrs    endof
       endcase
@@ -400,11 +493,8 @@ defer thumb-op@        \ How to access the instruction stream
    then
 ;
 
-: xrd  ( -- n )  8 4 op2-bits  ;
-: xrn  ( -- n )  0 4 op-bits  ;
-: xdp-op  ( -- n )  5 4 op-bits  ;
 : thumb-imm12  ( -- n )
-   0 8 op2-bits  #12 3 op2-bits  bwjoin  #10 op-bit  if  $800 or  then
+   ximm8  #12 3 op2-bits  bwjoin  #10 op-bit  if  $800 or  then
 ;
 : thumb-imm16  ( -- n )  thumb-imm12  xrn #12 lshift or  ;
 : thumb-expand-immed  ( -- n )
@@ -455,7 +545,7 @@ defer thumb-op@        \ How to access the instruction stream
 ;
 
 : .xdb-bin-imm  ( -- )
-   4 op-bit  if  ." bit 4 = 1 in binary immediate ???" exit  then
+   ldst-bit  if  ." bit 4 = 1 in binary immediate ???" exit  then
    xdp-op   case
       $0  of  .xdp-add         endof
       $2  of  " MOVW"   .movbi endof
@@ -487,8 +577,7 @@ defer thumb-op@        \ How to access the instruction stream
          xdp-op 2 = if  " MOV"  .xdp-mov exit  then
          xdp-op 3 = if  " MVN"  .xdp-mov exit  then
       then
-      " AND BIC ORR ORN EOR    ADD  ADC SBC  SUB RSB  " xdp-op select-substring .ops
-      xrd .reg,  xrn .reg, thumb-expand-immed .#n
+      .dp-common  thumb-expand-immed .#n
    then
 ;
 : opf0
@@ -500,13 +589,140 @@ defer thumb-op@        \ How to access the instruction stream
    then
 ;
 
+: .ldst-reg  ( -- )
+   xrt .reg,  .[ xrn .reg,  xrm .reg
+   ximm2  if  ., ." LSL #" ximm2 .d  then  .]
+;
+: .ldst-immed  ( -- )
+   xrt .reg,  .[ xrn .reg  
+
+   7 op-bit  if  \ 12-bit immediate
+      .,  0 #12 op2-bits  .#n  .]
+   else  \ 8-bit immediate
+      8 3 op2-bits 6 =  if
+         ., ximm8 .#n
+	 ."  <unpriv> "
+	 exit
+      then
+      #10 op2-bit 0=  if  .]  then
+
+      ., .# 9 op2-bit  if  ." +"  else  ." -"  then
+      ximm8 (.) type
+
+      #10 op2-bit  if  .]   8 op2-bit  if  ." !"  then  then
+   then
+;
+: .xst  ( -- )
+   " STRB STRH STR  " 5 2 op-bits .opx
+   8 op-bit 0=  #11 op2-bit 0=  and  if
+      \ Register
+      .ldst-reg
+   else
+      .ldst-immed
+   then
+;
+: .xldf  ( -- )
+   8 op-bit 0=  if
+      xrt .reg, ." [PC,#",
+      7 op-bit  if  ." +"  else  ." -"  then
+      0 #12 op2-bits (.) type  .]
+      exit
+   then
+   ." PC LOAD REGISTER"
+;
+: .xld  ( -- )
+   " LDRB LDRH LDR  " 5 2 op-bits .opx
+   xrn $f =  if
+      .xldf
+   else
+      7 2 op-bits 0=  6 6 op2-bits 0=  and  if
+	 .ldst-reg
+      else
+	 .ldst-immed
+      then
+   then
+
+;
 : xldst
    .instruction2
-   " XLDST" 0 .opx  .???
+   8 op-bit  if
+      .xst
+   else
+      .xld
+   then
+;
+: mul-op-bits  ( -- n )  4 3 op-bits  ;
+: .3regs  ( -- )  xrd .reg,  xrn .reg,  xrm .reg  ;
+: .4regs  ( -- )  .3regs .,  xrt .reg  ;
+: .mul  ( -- )
+   4 op2-bit  if
+      " MLS"  0 .opx  .4regs
+   else
+      xrt $f  =  if
+	 " MUL"  0 .opx  .3regs
+      else
+	 " MLA"  0 .opx  .4regs
+      then
+   then
+;
+
+: .smlah  ( -- )
+   xrt $f =  if
+      " SMULBB SMULBT SMULTB SMULTT" 4 2 op2-bits .opx .3regs
+      exit
+   then
+   " SMLABB SMLABT SMLATB SMLATT" 4 2 op2-bits .opx  .4regs
+;
+: .smlad  ( -- )
+   xrt $f =  if
+      " SUMAD SUMADX" 4 op2-bit  .opx  .3regs
+      exit
+   then
+   " SMLAD SMLADX" 4 op2-bit  .opx  .4regs
+;
+: .smlaw  ( -- )
+   xrt $f =  if
+      " SMULWB SMULWT" 4 op2-bit  .opx  .3regs
+      exit
+   then
+   " SMLAWB SMLAWT" 4 op2-bit  .opx  .4regs
+;
+: .smlsd  ( -- )
+   xrt $f =  if
+      " SMUSD SMUSX"" 4 op2-bit  .opx  .3regs
+      exit
+   then
+   " SMLSD SMLSDX" 4 op2-bit  .opx  .4regs
+;
+: .smmla  ( -- )
+   xrt $f =  if
+      " SMMUL SMMULR"" 4 op2-bit  .opx  .3regs
+      exit
+   then
+   " SMMLA SMMLAR" 4 op2-bit  .opx  .4regs
+;
+: .smmls  ( -- )
+   " SMMLS SMMLSR" 4 op2-bit  .opx  .4regs
+;
+: .usad  ( -- )
+   xrt $f =  if
+      " USAD8" 0 .opx  .3regs
+      exit
+   then
+   " USADA8" 0 .opx  .4regs
 ;
 : xmul
    .instruction2
-   " XMUL" 0 .opx  .???
+   mul-op-bits  case
+      0 of  .mul    endof
+      1 of  .smlah  endof
+      2 of  .smlad  endof
+      3 of  .smlaw  endof
+      4 of  .smlsd  endof
+      5 of  .smmla  endof
+      6 of  .smmls  endof
+      7 of  .usad   endof
+   endcase
 ;
 : xdpr
    .instruction2
@@ -546,7 +762,6 @@ f8 c, f0 c, ' opf0  token,  \ Additional 32-bit instructions
 fe c, f8 c, ' xldst token,  \ Data Processing Register
 ff c, fa c, ' xdpr  token,  \ Data Processing Register
 ff c, fb c, ' xmul  token,  \ Multiply
-
 
 here op-table - constant /op-table
 base !
