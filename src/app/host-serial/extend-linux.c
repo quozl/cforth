@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <termios.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include "forth.h"
 
@@ -44,6 +45,33 @@ open_com(cell portnum)		// Open COM port
 #endif
 
 	return (cell)comfid;
+}
+
+cell
+set_modem_control(cell comfid, cell dtr, cell rts)
+{
+	int modemstat, modemstatold;
+	
+	ioctl(comfid, TIOCMGET, &modemstat);
+	modemstatold = modemstat;
+	modemstat &= ~ (TIOCM_DTR | TIOCM_RTS);
+	if (dtr)
+		modemstat |= TIOCM_DTR;
+	if (rts)
+		modemstat |= TIOCM_RTS;
+	ioctl(comfid, TIOCMSET, &modemstat);
+
+	return modemstatold;
+}
+
+cell
+get_modem_control(cell comfid)
+{
+	int modemstat;
+
+	ioctl(comfid, TIOCMGET, &modemstat);
+
+	return modemstat;
 }
 
 cell
@@ -140,6 +168,8 @@ cell ((* const ccalls[])()) = {
 	(cell (*)())open_file,			// Entry # 4
         (cell (*)())timed_read_com,		// Entry # 5
         (cell (*)())ms,				// Entry # 6
+        (cell (*)())set_modem_control,		// Entry # 7
+        (cell (*)())get_modem_control,		// Entry # 8
     // Add your own routines here
 };
 

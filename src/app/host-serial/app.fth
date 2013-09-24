@@ -5,5 +5,7 @@
 4 ccall: h-open-file       { $.name -- i.handle }
 5 ccall: h-timed-read      { a.buf i.len i.ms i.handle -- i.actual }
 6 ccall: ms                { i.ms -- }
+7 ccall: set-modem         { i.rts i.dtr i.handle -- }
+8 ccall: get-modem         { i.handle -- i.modemstat }
 
 " app.dic" save
