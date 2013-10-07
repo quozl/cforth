@@ -1,11 +1,11 @@
 # allow override of default cross location
-ifeq ($(CROSS),)
-    CROSS=/usr/local/arm/arm-linux/bin/
-endif
+CROSS ?= /usr/local/arm/arm-linux/bin/
 TCC=$(CROSS)gcc
 TLD=$(CROSS)ld
 TOBJDUMP=$(CROSS)objdump
 TOBJCOPY=$(CROSS)objcopy
-TCFLAGS += -marm
+
+CPU_VARIANT ?= -marm
+TCFLAGS += $(CPU_VARIANT)
 
 LIBDIRS=-L$(dir $(shell $(TCC) -print-libgcc-file-name))
