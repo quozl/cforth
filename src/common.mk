@@ -27,6 +27,15 @@ t%.o: %.c
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
+%.bin: %.elf
+	@$(TOBJCOPY) -O binary $< $@
+
+%.nm: %.elf
+	@nm -n $< >$@
+
+%.dump: %.elf
+	@$(TOBJDUMP) --disassemble $(DUMPFLAGS) $< >$@
+
 # clean:
 #	rm -f *.o
 #	rm -f a.out
