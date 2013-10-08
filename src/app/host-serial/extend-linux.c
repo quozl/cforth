@@ -48,6 +48,31 @@ open_com(cell portnum)		// Open COM port
 }
 
 cell
+set_com_parity(cell comfid, cell parity)   // 'e', 'o', 'n'
+{
+	struct termios kstate;
+	tcgetattr(comfid,&kstate);
+        switch (parity) {
+          case 'n':
+            kstate.c_cflag &= ~PARENB;
+            break;
+          case 'o':
+            kstate.c_iflag |= IGNPAR;
+            kstate.c_iflag &= INPCK;
+            kstate.c_cflag |= PARENB;
+            kstate.c_cflag |= PARODD;
+            break;
+          case 'e':
+            kstate.c_iflag |= IGNPAR;
+            kstate.c_iflag &= INPCK;
+            kstate.c_cflag |= PARENB;
+            kstate.c_cflag &= ~PARODD;
+            break;
+        }
+        tcsetattr(comfid, TCSAFLUSH, &kstate);
+}
+
+cell
 set_modem_control(cell comfid, cell dtr, cell rts)
 {
 	int modemstat, modemstatold;
@@ -170,6 +195,7 @@ cell ((* const ccalls[])()) = {
         (cell (*)())ms,				// Entry # 6
         (cell (*)())set_modem_control,		// Entry # 7
         (cell (*)())get_modem_control,		// Entry # 8
+        (cell (*)())set_com_parity,		// Entry # 9
     // Add your own routines here
 };
 

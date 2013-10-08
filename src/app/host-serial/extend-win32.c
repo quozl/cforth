@@ -153,6 +153,7 @@ cell ((* const ccalls[])()) = {
     (cell (*)())open_file,			// Entry # 4
     (cell (*)())timed_read_com,			// Entry # 5
     (cell (*)())ms,				// Entry # 6
+    XXX Implement set_modem_control, get_modem_control, and set_com_parity
     // Add your own routines here
 };
 

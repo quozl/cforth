@@ -7,5 +7,6 @@
 6 ccall: ms                { i.ms -- }
 7 ccall: set-modem         { i.rts i.dtr i.handle -- }
 8 ccall: get-modem         { i.handle -- i.modemstat }
+9 ccall: set-parity        { i.parity i.handle -- }
 
 " app.dic" save
