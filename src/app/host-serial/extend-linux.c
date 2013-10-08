@@ -6,6 +6,10 @@
 #include <string.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#ifdef __APPLE__
+#include <stdlib.h>
+#include <glob.h>
+#endif
 #include <unistd.h>
 #include "forth.h"
 
@@ -17,16 +21,55 @@ char *bufp;
 int nbuf;
 #endif
 
+#ifdef __APPLE__
+int get_nth_port(cell portnum, char ** resbuf)
+{
+	glob_t g;
+	int retval = 0;
+
+	retval = glob("/dev/cu.usbserial*", 0, NULL, &g);
+	if (retval !=0 )
+		return -1;
+	if (portnum >= g.gl_pathc)
+		return -1;
+	char * result = g.gl_pathv[portnum];
+	size_t ressize = strlen(result);
+	*resbuf = malloc(ressize+1);
+	if (*resbuf == 0)
+	{
+		fprintf(stderr,"Out of memory in get_nth_port\n");
+		return -1;
+	}
+	strcpy(*resbuf, result);
+	globfree(&g);
+	return 0;
+}
+#endif
+
 cell
 open_com(cell portnum)		// Open COM port
 {
 	struct termios kstate;
-	char comname[32];
 	int comfid;
+#ifdef __APPLE__
+	char *comname;
+
+	//snprintf(comname, comname_len, "/dev/cu.usbserial-", portnum);
+	comfid = get_nth_port(portnum, &comname);
+	if (comfid < 0) {
+		fprintf(stderr, "Unable to find a port with name like /dev/cu.usbserial*\n");
+		return (cell)comfid;
+	}
+#else
+	char comname[32];
 
 	sprintf(comname, "/dev/ttyUSB%d", portnum);
+#endif
 	printf("%s\n",comname);
 	comfid = open(comname, O_RDWR, O_EXCL);
+#ifdef __APPLE__
+	free(comname);
+#endif
 	if (comfid < 0) {
 		return (cell)comfid;
 	}
@@ -52,24 +95,24 @@ set_com_parity(cell comfid, cell parity)   // 'e', 'o', 'n'
 {
 	struct termios kstate;
 	tcgetattr(comfid,&kstate);
-        switch (parity) {
-          case 'n':
-            kstate.c_cflag &= ~PARENB;
-            break;
-          case 'o':
-            kstate.c_iflag |= IGNPAR;
-            kstate.c_iflag &= INPCK;
-            kstate.c_cflag |= PARENB;
-            kstate.c_cflag |= PARODD;
-            break;
-          case 'e':
-            kstate.c_iflag |= IGNPAR;
-            kstate.c_iflag &= INPCK;
-            kstate.c_cflag |= PARENB;
-            kstate.c_cflag &= ~PARODD;
-            break;
+	switch (parity) {
+	case 'n':
+		kstate.c_cflag &= ~PARENB;
+		break;
+	case 'o':
+		kstate.c_iflag |= IGNPAR;
+		kstate.c_iflag &= INPCK;
+		kstate.c_cflag |= PARENB;
+		kstate.c_cflag |= PARODD;
+		break;
+	case 'e':
+		kstate.c_iflag |= IGNPAR;
+		kstate.c_iflag &= INPCK;
+		kstate.c_cflag |= PARENB;
+		kstate.c_cflag &= ~PARODD;
+		break;
         }
-        tcsetattr(comfid, TCSAFLUSH, &kstate);
+	tcsetattr(comfid, TCSAFLUSH, &kstate);
 }
 
 cell
