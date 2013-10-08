@@ -24,9 +24,9 @@ ifeq ($(OS),Windows_NT)
 else
   UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-	API = linux
+	API = posix
  else
-	API = linux
+	API = posix
 endif
 endif
 
