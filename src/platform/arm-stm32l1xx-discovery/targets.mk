@@ -19,7 +19,8 @@ DICTSIZE=0x1000
 
 include $(SRC)/cforth/embed/targets.mk
 
-STMLIB=/usr/local/stm32l1xx_periph-lib
+# relative to build directory
+STMLIB=../../../STMicro/STM32L1xx_StdPeriph_Lib_V1.2.0
 
 TCFLAGS += -Os
 
