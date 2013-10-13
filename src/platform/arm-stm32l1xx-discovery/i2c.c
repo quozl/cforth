@@ -63,15 +63,8 @@ static int      i2c_adrbytes;
 static int      i2c_dud;
 static int      i2c_error;
 
-void TIM11_IRQHandler(void)
+void I2C_Tick(void)
 {
-  TSL_acq_ProcessIT();
-} 
-
-void SysTick_Handler(void)
-{ 
-  TSL_tim_ProcessIT();
-
   if (i2c_timeout)
     if (i2c_timeout != 1)
       i2c_timeout--;
