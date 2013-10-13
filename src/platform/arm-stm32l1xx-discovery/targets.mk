@@ -19,8 +19,9 @@ DICTSIZE=0x1000
 
 include $(SRC)/cforth/embed/targets.mk
 
-# relative to build directory
-STMLIB=../../../thirdparty/STMicro/STM32L1xx_StdPeriph_Lib_V1.2.0
+STMLIB ?= /usr/local/stm32l1xx_periph-lib
+
+CLAGS += -m32 -march=i386
 
 TCFLAGS += -Os
 
@@ -50,7 +51,7 @@ INCS += -I$(STMLIB)/Libraries/STM32L1xx_StdPeriph_Driver/inc
 # Platform-specific object files for low-level startup and platform I/O
 
 # CLKCONFIG = -1v8-msi2000
-CLKCONFIG = -1v8-hsi16m-16m
+CLKCONFIG ?= -1v8-hsi16m-16m
 
 PLAT_OBJS  = tstartup_stm32l1xx_mdp.o tsystem_stm32l1xx$(CLKCONFIG).o
 PLAT_OBJS += tstm32l1xx_usart.o tstm32l1xx_rcc.o tstm32l1xx_gpio.o

@@ -13,6 +13,8 @@ TCFLAGS += -D_FORTIFY_SOURCE=0
 
 # INCS += 
 
+BUILDDIR = $(shell pwd)
+
 all: default
 
 t%.o: %.S

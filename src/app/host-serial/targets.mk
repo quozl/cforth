@@ -5,9 +5,6 @@ default: app.dic
 # Application code directory - i.e. this directory
 APPPATH=$(TOPDIR)/src/app/host-serial
 
-# OBJPATH2 is the build directory relative to here
-OBJPATH2=../../../$(BUILDDIR)
-
 # APPLOADFILE is the top-level "Forth load file" for the application code.
 APPLOADFILE = app.fth
 
@@ -37,4 +34,4 @@ VPATH += $(APPPATH)
 INCS += -I$(APPPATH)
 
 app.dic:  forth forth.dic $(APPSRCS)
-	(cd $(APPPATH); $(OBJPATH2)/forth $(OBJPATH2)/forth.dic $(APPLOADFILE); mv $@ $(OBJPATH2))
+	(cd $(APPPATH); $(BUILDDIR)/forth $(BUILDDIR)/forth.dic $(APPLOADFILE); mv $@ $(BUILDDIR))

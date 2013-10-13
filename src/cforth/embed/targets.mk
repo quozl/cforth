@@ -96,7 +96,7 @@ makebi: makebi.c
 # application code
 
 app.dic: $(APPPATH)/$(APPLOADFILE) forth forth.dic $(APPSRCS)
-	(cd $(APPPATH); $(OBJPATH2)/forth $(OBJPATH2)/forth.dic $(APPLOADFILE); mv $@ $(OBJPATH2))
+	(cd $(APPPATH); $(BUILDDIR)/forth $(BUILDDIR)/forth.dic $(APPLOADFILE); mv $@ $(BUILDDIR))
 
 base_dict.h base_dicthdr.h base_userarea.h: forth.dic makebi
 	./makebi $<
