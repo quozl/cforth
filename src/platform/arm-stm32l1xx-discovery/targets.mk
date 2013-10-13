@@ -21,7 +21,7 @@ include $(SRC)/cforth/embed/targets.mk
 
 STMLIB ?= /usr/local/stm32l1xx_periph-lib
 
-CLAGS += -m32 -march=i386
+CFLAGS += -m32 -march=i386
 
 TCFLAGS += -Os
 
@@ -53,7 +53,9 @@ INCS += -I$(STMLIB)/Libraries/STM32L1xx_StdPeriph_Driver/inc
 # CLKCONFIG = -1v8-msi2000
 CLKCONFIG ?= -1v8-hsi16m-16m
 
-PLAT_OBJS  = tstartup_stm32l1xx_mdp.o tsystem_stm32l1xx$(CLKCONFIG).o
+FIRST_OBJ = tstartup_stm32l1xx_mdp.o
+
+PLAT_OBJS += tsystem_stm32l1xx$(CLKCONFIG).o
 PLAT_OBJS += tstm32l1xx_usart.o tstm32l1xx_rcc.o tstm32l1xx_gpio.o
 PLAT_OBJS += ti2c.o tstm32l1xx_i2c.o tmisc.o
 PLAT_OBJS += ttmain.o tconsoleio.o
@@ -68,10 +70,10 @@ FORTH_OBJS = tembed.o textend.o
 
 LDSCRIPT = $(SRC)/platform/arm-stm32l1xx-discovery/stm32_flash.ld
 
-app.elf: $(PLAT_OBJS) $(FORTH_OBJS)
+app.elf: $(FIRST_OBJ) $(PLAT_OBJS) $(FORTH_OBJS)
 	@echo Linking $@ ... 
 	$(TLD) -o $@  $(TLFLAGS) -T$(LDSCRIPT) \
-	   $(PLAT_OBJS) $(FORTH_OBJS) \
+	   $(FIRST_OBJ) $(PLAT_OBJS) $(FORTH_OBJS) \
 	   $(LIBDIRS) -lgcc
 
 
