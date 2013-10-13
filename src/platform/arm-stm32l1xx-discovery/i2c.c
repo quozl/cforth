@@ -165,7 +165,29 @@ static void SysTickConfig(void)
 
 int i2c_inited = 0;
 
-void i2c_init()
+// XXX put in i2cm.h
+enum {
+  I2CM_SPEED_100KHZ = 100000,
+  I2CM_SPEED_400KHZ = 400000,
+};
+ 
+void i2cm_setSpeed(int speed)
+{
+  I2C_InitTypeDef I2C_InitStructure = {
+    .I2C_ClockSpeed  = I2CM_SPEED_400KHZ,
+    .I2C_Mode        = I2C_Mode_I2C,
+    .I2C_DutyCycle   = I2C_DutyCycle_2,
+    .I2C_OwnAddress1 = 0x00,
+    .I2C_Ack         = I2C_Ack_Enable,
+    .I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit
+  };
+
+  I2C_InitStructure.I2C_ClockSpeed = speed;
+
+  I2C_Init(I2Cx, &I2C_InitStructure);
+}
+
+void i2c_init(void)
 {
   if (i2c_inited)
     return;
@@ -174,26 +196,16 @@ void i2c_init()
   I2C_Config();
   SysTickConfig();
 
-  I2C_InitTypeDef I2C_InitStructure = {
-    .I2C_Mode        = I2C_Mode_I2C,
-    .I2C_DutyCycle   = I2C_DutyCycle_2,
-    .I2C_OwnAddress1 = 0x00,
-    .I2C_Ack         = I2C_Ack_Enable,
-    .I2C_ClockSpeed  = 400000,
-    .I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit
-  };
-
-  I2C_Init(I2Cx, &I2C_InitStructure);
+  i2cm_setSpeed(I2CM_SPEED_400KHZ);
 }
 
-void i2c_start(uint16_t slave_address,
+void i2c_start(uint8_t *dbuf, uint32_t dlen,
                uint8_t *abuf, uint32_t alen,
-               uint8_t *dbuf, uint32_t dlen,
-               int direction)
+               uint16_t slave_address, int write)
 {
   i2c_init();
 
-  i2c_direction = direction;
+  i2c_direction = write ? I2C_Direction_Transmitter : I2C_Direction_Receiver;
   i2c_slave_address = slave_address << 1;
   i2c_databuf   = dbuf;
   i2c_databytes = dlen;
@@ -211,13 +223,42 @@ void i2c_start(uint16_t slave_address,
   I2C_GenerateSTART(I2Cx, ENABLE);
 }
 
+// Returns nonzero on error
 int i2c_wait()
 {
   do {
     // idle();
   } while (!i2c_done);
 
-  return i2c_done;
+  return (i2c_done < 0);
+}
+
+uint8_t i2cm_ComboRead(uint8_t *dbuf, uint16_t dlen,
+                       uint8_t *abuf, uint16_t alen,
+                       uint8_t slave)
+{
+  i2c_start(dbuf, dlen, abuf, alen, slave, 0);
+  return i2c_wait();
+}
+
+uint8_t i2cm_ComboWrite(uint8_t *dbuf, uint16_t dlen,
+                        uint8_t *abuf, uint16_t alen,
+                        uint8_t slave)
+{
+  i2c_start(dbuf, dlen, abuf, alen, slave, 1);
+  return i2c_wait();
+}
+
+uint8_t i2cm_read(uint8_t *dbuf, uint16_t dlen, uint8_t slave)
+{
+  i2c_start(dbuf, dlen, 0, 0, slave, 0);
+  return i2c_wait();
+}
+
+uint8_t i2cm_write(uint8_t *dbuf, uint16_t dlen, uint8_t slave)
+{
+  i2c_start(dbuf, dlen, 0, 0, slave, 1);
+  return i2c_wait();
 }
 
 void I2Cx_ER_IRQHandler(void)
