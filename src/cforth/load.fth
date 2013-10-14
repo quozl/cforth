@@ -1,6 +1,6 @@
 fload basics.fth
 
-fload buffer.fth
+fload rambuffer.fth
 
 fload config.fth
 
