@@ -51,7 +51,7 @@ void PendSV_Handler(void)
 }
 
 // Variables communicating with the interrupt handler
-int  i2c_done;   // Can be polled for completion
+volatile   int  i2c_done;   // Can be polled for completion
 
 static uint32_t i2c_timeout;
 static int      i2c_direction;     // Either I2C_Direction_Receiver or I2C_Direction_Transmitter
@@ -314,7 +314,7 @@ void I2Cx_EV_IRQHandler(void)
     
     // This is the first data byte of an address-less transmit
     if (IS_TRANSMIT && i2c_databytes) {
-      tx('D');
+      // tx('D');
       CLEAR_ADDR;
       I2C_SendData(I2Cx, *i2c_databuf); 
       i2c_databuf++;
