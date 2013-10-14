@@ -206,7 +206,7 @@ void i2c_start(uint8_t *dbuf, uint32_t dlen,
   i2c_init();
 
   i2c_direction = write ? I2C_Direction_Transmitter : I2C_Direction_Receiver;
-  i2c_slave_address = slave_address << 1;
+  i2c_slave_address = slave_address;
   i2c_databuf   = dbuf;
   i2c_databytes = dlen;
   i2c_adrbuf    = abuf;
@@ -265,7 +265,6 @@ void I2Cx_ER_IRQHandler(void)
 {
   uint16_t error = I2C_ReadRegister(I2Cx, I2C_Register_SR1);
 
-  tx('E');
   if (error & 0xFF00) {
     I2Cx->SR1 = error & 0x00FF;   // Clear error flags
     i2c_done = -1;
@@ -303,7 +302,6 @@ void I2Cx_EV_IRQHandler(void)
     // This is the first address byte of either a split transmit
     // or a transmit/receive combo.
     if (i2c_adrbytes) {
-      //      tx('A');
       CLEAR_ADDR;
       I2C_SendData(I2Cx, *i2c_adrbuf); 
       i2c_adrbuf++;
@@ -314,7 +312,6 @@ void I2Cx_EV_IRQHandler(void)
     
     // This is the first data byte of an address-less transmit
     if (IS_TRANSMIT && i2c_databytes) {
-      // tx('D');
       CLEAR_ADDR;
       I2C_SendData(I2Cx, *i2c_databuf); 
       i2c_databuf++;
@@ -323,7 +320,6 @@ void I2Cx_EV_IRQHandler(void)
       return;
     }
 
-    //    tx('R');
     // Otherwise this is the beginning of either a pure receive
     // or the receive phase of a transmit/receive combo.
     switch (i2c_databytes) {
@@ -377,7 +373,6 @@ void I2Cx_EV_IRQHandler(void)
   // very end of the transfer or just before the final byte.
   // Check this before TXE and RXNE because one of those will be set too.
   if(event & I2C_SR1_BTF) {
-    // tx('b');
     // Finished with a transmit-only transaction
     if (IS_TRANSMIT) {
       i2c_done = 1;
@@ -390,6 +385,8 @@ void I2Cx_EV_IRQHandler(void)
     if (IS_RECEIVE && (I2C_ReadRegister(I2Cx, I2C_Register_SR2) & I2C_SR2_TRA)) {
       // Repeated START to switch to receive phase
       I2C_GenerateSTART(I2Cx, ENABLE);
+      // Unless you do this you get an immediate repetition of the IRQ
+      (void)I2C_ReadRegister(I2Cx, I2C_Register_SR2);
       return;
     }
 
@@ -431,7 +428,6 @@ void I2Cx_EV_IRQHandler(void)
   }
 
   if (event & I2C_SR1_TXE) {
-    //    tx('t');
     if (ntxbytes == 1) {
       // This is the last Tx byte so turn off buffer interrupts
       // The next interrupt will be BTF
@@ -461,10 +457,9 @@ void I2Cx_EV_IRQHandler(void)
 
   // Either several bytes to go, or end of a one-byte transfer
   if(event & I2C_SR1_RXNE)  {
-    //    tx('r');
     *i2c_databuf++ = I2C_ReceiveData (I2Cx);  // Store data
     i2c_databytes--;
-        
+
     if (i2c_databytes == 0x03)
       I2C_ITConfig(I2Cx, I2C_IT_BUF , DISABLE);  // Disable buffer ints
 
@@ -477,6 +472,5 @@ void I2Cx_EV_IRQHandler(void)
 
     return;
   }    
-  //  tx('X');
   i2c_dud = I2C_ReadRegister(I2Cx, I2C_Register_SR2);
 }
