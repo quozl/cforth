@@ -3,7 +3,7 @@
 SRC=$(TOPDIR)/src
 
 # Target compiler definitions
-CROSS ?= /space/arm-none-eabi/arm-2013.05/bin/arm-none-eabi-
+CROSS ?= arm-none-eabi-
 CPU_VARIANT=-mthumb -mcpu=cortex-m3
 include $(SRC)/cpu/arm/compiler.mk
 
