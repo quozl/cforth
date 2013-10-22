@@ -15,7 +15,7 @@ include $(SRC)/cforth/targets.mk
 DEFS += -DUSE_STDPERIPH_DRIVER
 
 DICTIONARY=ROM
-DICTSIZE=0x1000
+DICTSIZE=0x2000
 
 include $(SRC)/cforth/embed/targets.mk
 
