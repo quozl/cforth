@@ -8,6 +8,7 @@
 *.ip
 *.img
 *.exe
+*.bin
 forth
 meta
 makebi
