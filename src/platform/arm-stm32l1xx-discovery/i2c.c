@@ -220,6 +220,7 @@ void i2c_start(uint8_t *dbuf, uint32_t dlen,
   I2C_ITConfig(I2Cx, I2C_IT_ERR , ENABLE); // Enable error interrupts
   I2C_ITConfig(I2Cx, I2C_IT_EVT, ENABLE);  // Enable event interrupts
   I2C_AcknowledgeConfig(I2Cx, ENABLE);     // ACK not NACK
+  I2C_NACKPositionConfig(I2Cx, I2C_NACKPosition_Current);
   I2C_GenerateSTART(I2Cx, ENABLE);
 }
 
