@@ -655,7 +655,7 @@ create nullstring 0 c,
 alias purpose: \
 alias headerless noop
 alias headers noop
-alias (emit emit
-alias (type type
+: (emit  ( n -- )  #out @ swap  emit  #out !  ;
+: (type  ( adr len -- )  #out @ -rot  type  #out !  ;
 : upc  ( char -- char' )  $20 invert and  ;
 alias #-buf pad
