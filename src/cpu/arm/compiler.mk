@@ -8,4 +8,4 @@ TOBJCOPY=$(CROSS)objcopy
 CPU_VARIANT ?= -marm
 TCFLAGS += $(CPU_VARIANT)
 
-LIBDIRS=-L$(dir $(shell $(TCC) -print-libgcc-file-name))
+LIBDIRS=-L$(dir $(shell $(TCC) $(TCFLAGS) -print-libgcc-file-name))
