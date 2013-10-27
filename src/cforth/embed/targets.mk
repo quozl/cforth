@@ -35,7 +35,8 @@ ARTIFACTS += $(TBASEOBJS) $(EMBEDOBJS)
 # the compilation host and the target have the same instruction set.
 
 forthbi: main.o embed.o mallocl.o
-	$(CC) $(CFLAGS) -o $@ main.o embed.o mallocl.o
+	@echo CC $<
+	@$(CC) $(CFLAGS) -o $@ main.o embed.o mallocl.o
 
 RAMBASE = 0x200000
 TEXTBASE = $(RAMBASE)
@@ -53,7 +54,8 @@ tembed.o: $(TBASEOBJS) $(EMBEDOBJS)
 # call into the Forth application
 
 startapp.o: startapp.c $(INCLUDE)
-	$(TCC) $(TCFLAGS) -c $<
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $<
 
 # The following object modules contains a binary image of
 # a Forth dictionary.  It is used as a component of tembed.o and
@@ -61,13 +63,16 @@ startapp.o: startapp.c $(INCLUDE)
 # I/O operations in order to get their initial Forth dictionary.
 
 builtin.o: builtin.c $(INCLUDE) dict.h dicthdr.h
-	$(TCC) $(TCFLAGS) -c $<
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $<
 
 rwdict.o: rwdict.c $(INCLUDE) dict.h dicthdr.h userarea.h
-	$(TCC) $(TCFLAGS) -c $<
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $<
 
 rodict.o: rodict.c $(INCLUDE) dict.h dicthdr.h userarea.h
-	$(TCC) $(TCFLAGS) -c $<
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $<
 
 *.o: targets.mk
 *.o: $(INCLUDE)
@@ -75,7 +80,8 @@ rodict.o: rodict.c $(INCLUDE) dict.h dicthdr.h userarea.h
 # Memory allocator for the target environment
 
 mallocembed.o: mallocembed.c $(FINC)
-	$(TCC) $(TCFLAGS) -c $<
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $<
 
 # dict.h and dicthdr.h are automatically-generated "source" files
 # containing ASCII representations of binary data.  They are compiled
@@ -90,7 +96,8 @@ dict.h dicthdr.h userarea.h: app.dic makebi
 # into an initialized data area.
 
 makebi: makebi.c
-	$(CC) $(CFLAGS) -o makebi $<
+	@echo CC $<
+	@$(CC) $(CFLAGS) -o makebi $<
 
 # app.dic is a Forth dictionary file that has been extended to include
 # application code
@@ -108,10 +115,12 @@ base_dict.h base_dicthdr.h base_userarea.h: forth.dic makebi
 # (i.e. getchar() and putchar()).
 
 tconsio.o: consio.c $(INCLUDE)
-	$(TCC) $(TCFLAGS) -c $<  -o $@
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $<  -o $@
 
 tlineedit.o: lineedit.c $(INCLUDE)
-	$(TCC) $(TCFLAGS) -c $<  -o $@
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $<  -o $@
 
 # tforth.o implements the Forth virtual machine and the core primitives.
 # It corresponds roughly to the set of Forth words that would typically
@@ -119,13 +128,15 @@ tlineedit.o: lineedit.c $(INCLUDE)
 # implementation
 
 tforth.o: forth.c $(INCLUDE)
-	$(TCC) $(TCFLAGS) -c $< -o $@
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $< -o $@
 
 # compiler.o implements low-level support routines that are used by
 # the Forth interpreter/incremental compiler
 
 tcompiler.o: compiler.c $(INCLUDE)
-	$(TCC) $(TCFLAGS) -c $< -o $@
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $< -o $@
 
 # dictfile.o implements file I/O routines specifically for the purpose
 # of reading and writing Forth dictionary images to and from files.
@@ -137,12 +148,15 @@ tcompiler.o: compiler.c $(INCLUDE)
 # The next few object files implement miscellaneous primitives;
 
 tsyscall.o: generic/syscall.c $(FINC)
-	$(TCC) $(TCFLAGS) -c $< -o $@
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $< -o $@
 
 tfloatops.o: floatops.c $(FINC) prims.h
-	$(TCC) $(TCFLAGS) -c $< -o $@
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $< -o $@
 
 textend.o: textend.c $(FINC)
-	$(TCC) $(TCFLAGS) -c $< -o $@
+	@echo TCC $<
+	@$(TCC) $(TCFLAGS) -c $< -o $@
 
 EXTRA_CLEAN += tembed.o

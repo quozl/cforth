@@ -101,7 +101,8 @@ kernel.dic: interp.fth meta init.x
 # Forth execution environment, resulting in a smaller kernel.
 
 meta: $(METAOBJS)
-	$(CC) $(CFLAGS) -o $@ $(METAOBJS)
+	@echo CC $<
+	@$(CC) $(CFLAGS) -o $@ $(METAOBJS)
 
 # meta.o is an object module that is a component of "meta"
 
@@ -134,7 +135,8 @@ forth: $(BASEOBJS) $(HOSTOBJS)
 # embeddable version (embed.o).
 
 extend.o: $(EXTENDSRC) $(FINC)
-	$(CC) $(CFLAGS) -c $(EXTENDSRC) -o $@
+	@echo CC $<
+	@$(CC) $(CFLAGS) -c $(EXTENDSRC) -o $@
 
 # These files are automatically-generated header files containing
 # information extracted from the C source file "forth.c".  They
@@ -157,7 +159,8 @@ init.x prims.h vars.h: forth.c
 # those three files.
 
 makename: makename.c
-	$(CC) -o makename $<
+	@echo CC $<
+	@$(CC) -o makename $<
 
 clean:
 	@rm -f $(ARTIFACTS) forth forth.dic app.dic $(EXTRA_CLEAN)

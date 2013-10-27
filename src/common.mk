@@ -18,24 +18,30 @@ BUILDDIR = $(shell pwd)
 all: default
 
 t%.o: %.S
-	$(TCC) $(INCS) $(DEFS) $(TSFLAGS) -c $< -o $@
+	@echo TAS $<
+	@$(TCC) $(INCS) $(DEFS) $(TSFLAGS) -c $< -o $@
 
 t%.o: %.s
-	$(TCC) $(INCS) $(DEFS) -c $< -o $@
+	@echo TAS $<
+	@$(TCC) $(INCS) $(DEFS) -c $< -o $@
 
 t%.o: %.c
-	$(TCC) $(INCS) $(DEFS) $(TCFLAGS) $(TCPPFLAGS) -c $< -o $@
+	@echo TCC $<
+	@$(TCC) $(INCS) $(DEFS) $(TCFLAGS) $(TCPPFLAGS) -c $< -o $@
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $<
+	@echo CC $<
+	@$(CC) $(CFLAGS) -c $<
 
 %.bin: %.elf
+	@echo OBJCOPY $< $@
 	@$(TOBJCOPY) -O binary $< $@
 
 %.nm: %.elf
 	@nm -n $< >$@
 
 %.dump: %.elf
+	@echo OBJDUMP $<
 	@$(TOBJDUMP) --disassemble $(DUMPFLAGS) $< >$@
 
 # clean:
