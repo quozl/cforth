@@ -114,8 +114,9 @@ meta: $(METAOBJS)
 # images to and from ordinary files.
 
 forth: $(BASEOBJS) $(HOSTOBJS)
-	echo MAKING FORTH
-	$(CC) $(CFLAGS) -o $@ $(HOSTOBJS) $(BASEOBJS)
+	@echo MAKING FORTH
+	@echo CC $(HOSTOBJS) $(BASEOBJS) -o $@
+	@$(CC) $(CFLAGS) -o $@ $(HOSTOBJS) $(BASEOBJS)
 
 # main.o is the main() entry point for the self-contained applications above
 
@@ -145,7 +146,8 @@ extend.o: $(EXTENDSRC) $(FINC)
 init.x prims.h vars.h: forth.c
 	make makename
 	rm -f init.x prims.h vars.h
-	cpp -C -DMAKEPRIMS $(CONFIG) $< >forth.ip
+	@echo CPP $<
+	@cpp -C -DMAKEPRIMS $(CONFIG) $< >forth.ip
 	./makename forth.ip
 
 # makename is a self-contained application whose purpose is to
