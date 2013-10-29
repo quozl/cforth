@@ -20,12 +20,14 @@ nuser buffer-link
    buffer-link link@  link,  buffer-link link!
 ;
 
+: alloc-mem4  ( len -- adr )  4 +  alloc-mem  4 round-up  ;
+
 : do-buffer  ( apf -- adr )
    dup >user @  if          ( apf )
       >user @               ( adr )
    else                     ( apf )
       dup /user# + @        ( apf size )
-      dup alloc-mem         ( apf size adr )
+      dup alloc-mem4        ( apf size adr )
       dup rot erase         ( apf adr )
       dup rot >user !       ( adr )
    then
