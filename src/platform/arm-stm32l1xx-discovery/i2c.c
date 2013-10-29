@@ -228,7 +228,7 @@ void i2c_start(uint8_t *dbuf, uint32_t dlen,
 int i2c_wait()
 {
   do {
-    // idle();
+    __WFI();
   } while (!i2c_done);
 
   return (i2c_done < 0);
