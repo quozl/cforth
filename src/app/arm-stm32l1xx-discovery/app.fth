@@ -7,6 +7,8 @@ fl ../../lib/dl.fth
 1 ccall: i2c-wait    { -- i.status }
 2 ccall: i2c-init    { -- }
 3 ccall: spins       { i.nspins -- }
+4 ccall: wfi         { -- }
+5 ccall: get-msecs   { -- n }
 
 : +apb1 $40000000 +  ;
 : +apb2 $40010000 +  ;

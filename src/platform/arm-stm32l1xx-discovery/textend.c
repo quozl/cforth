@@ -9,18 +9,17 @@
 cell i2c_start();
 cell i2c_wait();
 cell i2c_init();
-
-cell spins(int i)
-{
-  while(i--)
-    asm("");  // The asm("") prevents optimize-to-nothing
-}
+cell get_ms();
+cell wfi();
+cell spins();
 
 cell ((* const ccalls[])()) = {
     (cell (*)())i2c_start,    // Entry # 0
     (cell (*)())i2c_wait,     // Entry # 1
     (cell (*)())i2c_init,     // Entry # 2
     (cell (*)())spins,        // Entry # 3
+    (cell (*)())wfi,          // Entry # 4
+    (cell (*)())get_ms,       // Entry # 5
 };
 
 // Forth words to call the above routines may be created by:

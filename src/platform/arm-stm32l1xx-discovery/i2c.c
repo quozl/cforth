@@ -194,7 +194,6 @@ void i2c_init(void)
   i2c_inited = 1;
 
   I2C_Config();
-  SysTickConfig();
 
   i2cm_setSpeed(I2CM_SPEED_400KHZ);
 }

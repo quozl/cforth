@@ -65,4 +65,23 @@ void init_io()
   USART_Init(consoleUart, &uartInit);
 
   USART_Cmd(consoleUart, ENABLE);
+
+  init_systick();
+}
+
+void wfi(void)
+{
+  __WFI();
+}
+
+extern int ms_tick;
+int get_ms(void)
+{
+  return ms_tick;
+}
+
+int spins(int i)
+{
+  while(i--)
+    asm("");  // The asm("") prevents optimize-to-nothing
 }
