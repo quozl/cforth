@@ -266,12 +266,18 @@ pfclose(cell f, cell *up)
 
 // 0:r/o 1:w/o 2:r/w 3: undefined
 static char *open_modes[]   = { "rb",  "ab", "r+b", "" };
+static char *popen_modes[]  = { "r",  "w", "rw", "" };
 cell
 pfopen(char *name, int len, int mode, cell *up)
 {
     char cstrbuf[512];
+    char *s;
+    s = altocstr(name, len, cstrbuf, 512);
 
-    return( (cell)fopen(altocstr(name, len, cstrbuf, 512), open_modes[mode&3]) );
+    if (!strncmp("popen:", s, 6))
+        return (cell)popen(s+6, popen_modes[mode&3]);
+
+    return( (cell)fopen(s, open_modes[mode&3]) );
 }
 
 static char *create_modes[] = { "a+b", "wb", "w+b", "" };
