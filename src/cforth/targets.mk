@@ -147,7 +147,7 @@ init.x prims.h vars.h: forth.c
 	make makename
 	rm -f init.x prims.h vars.h
 	@echo CPP $<
-	@cpp -C -DMAKEPRIMS $(CONFIG) $< >forth.ip
+	@$(CPP) -C -DMAKEPRIMS $(CONFIG) $< >forth.ip
 	./makename forth.ip
 
 # makename is a self-contained application whose purpose is to
