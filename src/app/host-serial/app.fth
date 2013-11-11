@@ -9,4 +9,6 @@
 8 ccall: get-modem         { i.handle -- i.modemstat }
 9 ccall: set-parity        { i.parity i.handle -- }
 
+fl ../../cforth/printf.fth
+
 " app.dic" save
