@@ -57,9 +57,12 @@ FIRST_OBJ = tstartup_stm32l1xx_mdp.o
 
 PLAT_OBJS += tsystem_stm32l1xx$(CLKCONFIG).o
 PLAT_OBJS += tstm32l1xx_usart.o tstm32l1xx_rcc.o tstm32l1xx_gpio.o
-PLAT_OBJS += ti2c.o tstm32l1xx_i2c.o tmisc.o tsystick.o
+PLAT_OBJS += tstm32l1xx_i2c.o tmisc.o tsystick.o
 PLAT_OBJS += ttmain.o tconsoleio.o
 
+EXTEND_OBJS ?= ti2c.o
+
+PLAT_OBJS += $(EXTEND_OBJS)
 
 # Object files for the Forth system and application-specific extensions
 

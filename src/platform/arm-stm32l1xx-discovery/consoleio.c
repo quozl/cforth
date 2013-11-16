@@ -75,7 +75,7 @@ void wfi(void)
 }
 
 extern int ms_tick;
-int get_ms(void)
+int get_msecs(void)
 {
   return ms_tick;
 }

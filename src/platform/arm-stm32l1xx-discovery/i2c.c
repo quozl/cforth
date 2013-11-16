@@ -233,7 +233,7 @@ int i2c_wait()
   return (i2c_done < 0);
 }
 
-uint8_t i2cm_ComboRead(uint8_t *dbuf, uint16_t dlen,
+uint8_t i2cm_comboRead(uint8_t *dbuf, uint16_t dlen,
                        uint8_t *abuf, uint16_t alen,
                        uint8_t slave)
 {
@@ -241,7 +241,7 @@ uint8_t i2cm_ComboRead(uint8_t *dbuf, uint16_t dlen,
   return i2c_wait();
 }
 
-uint8_t i2cm_ComboWrite(uint8_t *dbuf, uint16_t dlen,
+uint8_t i2cm_comboWrite(uint8_t *dbuf, uint16_t dlen,
                         uint8_t *abuf, uint16_t alen,
                         uint8_t slave)
 {

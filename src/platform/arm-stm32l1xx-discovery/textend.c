@@ -9,7 +9,7 @@
 cell i2c_start();
 cell i2c_wait();
 cell i2c_init();
-cell get_ms();
+cell get_msecs();
 cell wfi();
 cell spins();
 
@@ -19,7 +19,7 @@ cell ((* const ccalls[])()) = {
     (cell (*)())i2c_init,     // Entry # 2
     (cell (*)())spins,        // Entry # 3
     (cell (*)())wfi,          // Entry # 4
-    (cell (*)())get_ms,       // Entry # 5
+    (cell (*)())get_msecs,    // Entry # 5
 };
 
 // Forth words to call the above routines may be created by:
