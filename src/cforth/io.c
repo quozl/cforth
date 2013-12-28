@@ -12,6 +12,8 @@
 // name_input(filename);		    
 
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "forth.h"
 #include "compiler.h"
@@ -258,6 +260,55 @@ pfclose(cell f, cell *up)
     return( (cell)fclose((FILE *)f) );
 }
 
+#define MAXPATHLEN 2048
+char *
+expand_name(char *name)
+{
+  char envvar[64], *fnamep, *envp, paren, *fullp;
+  static char fullname[MAXPATHLEN];
+  int ndx;
+
+  fullp = fullname;
+  fullname[0] = '\0';
+
+  fnamep = name;
+
+  while (*fnamep) {
+    if (*fnamep == '$') {
+      fnamep++;
+      ndx = 0;
+      if (*fnamep == '{' || *fnamep == '(') {	// multi char env var
+        paren = (*fnamep++ == '{') ? '}' : ')';
+
+        while (*fnamep != paren && ndx < MAXPATHLEN && *fnamep != '\0') {
+          envvar[ndx++] = *(fnamep++);
+        }
+        if (*fnamep == paren) {
+          fnamep++;
+        } else {
+          ndx = 0;
+          fnamep = name;
+        }
+      } else		/* single char env. var. */
+        envvar[ndx++] = *(fnamep++);
+      envvar[ndx] = '\0';
+
+      if (ndx > 0 && (envp = getenv(envvar)) != NULL) {
+        strcpy(fullp, envp);
+        fullp += strlen(envp);
+      } else {
+        printf("Can't find environment variable %s in %s\n", envvar,name);
+        exit(1);
+      }
+      ndx = 0;
+    } else {
+      *fullp++ = *fnamep++;
+    }
+  }
+  *fullp = '\0';
+  return (fullname);
+}
+
 // r/o                Open existing file for reading
 // w/o                Open or create file for appending
 // r/w                Open existing for reading and writing
@@ -272,7 +323,7 @@ pfopen(char *name, int len, int mode, cell *up)
 {
     char cstrbuf[512];
     char *s;
-    s = altocstr(name, len, cstrbuf, 512);
+    s = expand_name(altocstr(name, len, cstrbuf, 512));
 
     if (!strncmp("popen:", s, 6))
         return (cell)popen(s+6, popen_modes[mode&3]);
@@ -286,7 +337,7 @@ pfcreate(char *name, int len, int mode, cell *up)
 {
     char cstrbuf[512];
 
-    return( (cell)fopen(altocstr(name, len, cstrbuf, 512), create_modes[mode&3]) );
+    return( (cell)fopen(expand_name(altocstr(name, len, cstrbuf, 512)), create_modes[mode&3]) );
 }
 
 cell
