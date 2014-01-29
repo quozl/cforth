@@ -23,10 +23,11 @@ else
 endif
 
 # Objects specific to the target environment
-EMBEDOBJS=startapp.o tconsio.o mallocembed.o $(DICTOBJ)
+EMBED_IO_OBJS=startapp.o tconsio.o mallocembed.o
+EMBEDOBJS=$(EMBED_IO_OBJS)
 
 HELPERS += makebi forthbi
-ARTIFACTS += $(TBASEOBJS) $(EMBEDOBJS)
+ARTIFACTS += $(TBASEOBJS) $(EMBEDOBJS) $(DICTOBJ)
 
 # forthbi contains the same basic functionality as embed.o, but it
 # is linked as a self-contained application that can be executed
@@ -47,7 +48,12 @@ TLFLAGS = -static
 # only minimal C library support; basically just memory allocation,
 # putchar/getchar, and simple string routines like strcpy().
 
-tembed.o: $(TBASEOBJS) $(EMBEDOBJS)
+tembed.o: $(TBASEOBJS) $(EMBEDOBJS) $(DICTOBJ)
+	$(TLD) -r -o $@ $(TBASEOBJS) $(EMBEDOBJS) $(DICTOBJ)
+
+# tkernel.o is like tembed.o but it omits the dictionary so
+# that can be compiled separately
+tkernel.o: $(TBASEOBJS) $(EMBEDOBJS)
 	$(TLD) -r -o $@ $(TBASEOBJS) $(EMBEDOBJS)
 
 # startapp.o provides entry points for the enclosing application to
@@ -61,10 +67,6 @@ startapp.o: startapp.c $(INCLUDE)
 # a Forth dictionary.  It is used as a component of tembed.o and
 # forthbi, so that those programs do not need to perform file
 # I/O operations in order to get their initial Forth dictionary.
-
-builtin.o: builtin.c $(INCLUDE) dict.h dicthdr.h
-	@echo TCC $<
-	@$(TCC) $(TCFLAGS) -c $<
 
 rwdict.o: rwdict.c $(INCLUDE) dict.h dicthdr.h userarea.h
 	@echo TCC $<
@@ -85,7 +87,7 @@ mallocembed.o: mallocembed.c $(FINC)
 
 # dict.h and dicthdr.h are automatically-generated "source" files
 # containing ASCII representations of binary data.  They are compiled
-# to create builtin.o
+# to create rwdict.o or rodict.o
 
 dict.h dicthdr.h userarea.h: app.dic makebi
 	./makebi $<
