@@ -63,7 +63,7 @@ open_com(cell portnum)		// Open COM port
 #else
 	char comname[32];
 
-	sprintf(comname, "/dev/ttyUSB%d", portnum);
+	sprintf(comname, "/dev/ttyUSB%ld", portnum);
 #endif
 	printf("%s\n",comname);
 	comfid = open(comname, O_RDWR, O_EXCL);
@@ -147,8 +147,7 @@ open_file(cell stradr)		// Open file
 {
 	char *name = (char *)stradr;
 	int fid;
-    
-	printf("name %s %s\n", stradr, name);
+
 	fid = open(name, O_RDWR, 0);
 	return (cell)fid;
 }
