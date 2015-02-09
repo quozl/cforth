@@ -552,12 +552,16 @@ vocabulary hidden
 : dp!  ( adr -- )  here - allot  ;
 nuser fence
 : trim  ( fadr voc-adr -- )
-   #threads 0  do
-      2dup  begin  link@  2dup u>  until  ( fadr thread  fadr link' )
-      nip over link!                      ( fadr thread )
-      /link +
-   loop
-   2drop
+   #threads 0  do          ( fadr thread-adr )
+      2dup  begin          ( fadr thread-adr  fadr link-adr )
+         link@  2dup u<=   ( fadr thread-adr  fadr word-adr flag )
+      while                ( fadr thread-adr  fadr word-adr )
+         >link             ( fadr thread-adr  fadr link-adr )
+      repeat               ( fadr thread-adr   fadr link' )
+      nip over link!       ( fadr thread-adr )
+      /link +              ( fadr thread-adr' )
+   loop                    ( fadr thread-adr' )
+   2drop                   ( )
 ;
 \ It is a bad idea to do a forget that will result in the forgetting of
 \ vocabularies that are presently in the search order.
@@ -577,12 +581,12 @@ nuser fence
    while
       2dup  >threads  ( adr voc-link-adr adr voc-threads-adr )
       trim            ( adr voc-link-adr )
-      link@           ( adr new-voc-link-adr )
+      >voc-link link@ ( adr new-voc-link-adr )
    repeat
    drop   dp!
 ;
 : forget   ( -- )
-   safe-parse-word current @ search-wordlist
+   safe-parse-word current token@ search-wordlist
    0= abort" Can't find word to forget"
    (forget
 ;
