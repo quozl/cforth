@@ -1,6 +1,6 @@
 /* Teensyduino Core Library
  * http://www.pjrc.com/teensy/
- * Copyright (c) 2013 PJRC.COM, LLC.
+ * Copyright (c) 2017 PJRC.COM, LLC.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -26,6 +26,15 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * Trying to understand this rather complex code?
+ *
+ * Kevin Cuzner wrote a simpler version, and a great blog article:
+ *   http://kevincuzner.com/2014/12/12/teensy-3-1-bare-metal-writing-a-usb-driver/
+ *   https://github.com/kcuzner/teensy-oscilloscope/blob/master/scope-teensy/src/usb.c
+ *
+ * Andy Payne wrote another relatively simple USB example for Freescale Kinetis
+ *   https://github.com/payne92/bare-metal-arm
  */
 
 #include "usb_dev.h"
@@ -34,10 +43,23 @@
 #include "kinetis.h"
 //#include "HardwareSerial.h"
 #include "usb_mem.h"
+#include <string.h> // for memset
+
+// This code has a known bug with compiled with -O2 optimization on gcc 5.4.1
+// https://forum.pjrc.com/threads/53574-Teensyduino-1-43-Beta-2?p=186177&viewfull=1#post186177
+#if 0
+#if defined(__MKL26Z64__)
+#pragma GCC optimize ("Os")
+#else
+#pragma GCC optimize ("O3")
+#endif
+#endif
+// adding volatile to bdt_t fully solves the bug, right?
+// https://forum.pjrc.com/threads/67081?p=278849&viewfull=1#post278849
 
 // buffer descriptor table
 
-typedef struct {
+typedef volatile struct {
 	uint32_t desc;
 	void * addr;
 } bdt_t;
@@ -215,6 +237,14 @@ static void usb_setup(void)
 			epconf = *cfg++;
 			*reg = epconf;
 			reg += 4;
+#ifdef AUDIO_INTERFACE
+			if (i == AUDIO_RX_ENDPOINT) {
+				table[index(i, RX, EVEN)].addr = usb_audio_receive_buffer;
+				table[index(i, RX, EVEN)].desc = (AUDIO_RX_SIZE<<16) | BDT_OWN;
+				table[index(i, RX, ODD)].addr = usb_audio_receive_buffer;
+				table[index(i, RX, ODD)].desc = (AUDIO_RX_SIZE<<16) | BDT_OWN;
+			} else
+#endif
 			if (epconf & USB_ENDPT_EPRXEN) {
 				usb_packet_t *p;
 				p = usb_malloc();
@@ -236,6 +266,12 @@ static void usb_setup(void)
 			}
 			table[index(i, TX, EVEN)].desc = 0;
 			table[index(i, TX, ODD)].desc = 0;
+#ifdef AUDIO_INTERFACE
+			if (i == AUDIO_SYNC_ENDPOINT) {
+				table[index(i, TX, EVEN)].addr = &usb_audio_sync_feedback;
+				table[index(i, TX, EVEN)].desc = (3<<16) | BDT_OWN;
+			}
+#endif
 		}
 		break;
 	  case 0x0880: // GET_CONFIGURATION
@@ -250,14 +286,15 @@ static void usb_setup(void)
 		data = reply_buffer;
 		break;
 	  case 0x0082: // GET_STATUS (endpoint)
-		if (setup.wIndex > NUM_ENDPOINTS) {
+		i = setup.wIndex & 0x7F;
+		if (i > NUM_ENDPOINTS) {
 			// TODO: do we need to handle IN vs OUT here?
 			endpoint0_stall();
 			return;
 		}
 		reply_buffer[0] = 0;
 		reply_buffer[1] = 0;
-		if (*(uint8_t *)(&USB0_ENDPT0 + setup.wIndex * 4) & 0x02) reply_buffer[0] = 1;
+		if (*(uint8_t *)(&USB0_ENDPT0 + i * 4) & 0x02) reply_buffer[0] = 1;
 		data = reply_buffer;
 		datalen = 2;
 		break;
@@ -268,7 +305,7 @@ static void usb_setup(void)
 			endpoint0_stall();
 			return;
 		}
-		(*(uint8_t *)(&USB0_ENDPT0 + setup.wIndex * 4)) &= ~0x02;
+		(*(uint8_t *)(&USB0_ENDPT0 + i * 4)) &= ~0x02;
 		// TODO: do we need to clear the data toggle here?
 		break;
 	  case 0x0302: // SET_FEATURE (endpoint)
@@ -278,7 +315,7 @@ static void usb_setup(void)
 			endpoint0_stall();
 			return;
 		}
-		(*(uint8_t *)(&USB0_ENDPT0 + setup.wIndex * 4)) |= 0x02;
+		(*(uint8_t *)(&USB0_ENDPT0 + i * 4)) |= 0x02;
 		// TODO: do we need to clear the data toggle here?
 		break;
 	  case 0x0680: // GET_DESCRIPTOR
@@ -320,16 +357,55 @@ static void usb_setup(void)
 		//serial_print("desc: not found\n");
 		endpoint0_stall();
 		return;
-#if defined(CDC_STATUS_INTERFACE)
 	  case 0x2221: // CDC_SET_CONTROL_LINE_STATE
-		usb_cdc_line_rtsdtr = setup.wValue;
+		switch (setup.wIndex) {
+#ifdef CDC_STATUS_INTERFACE
+		  case CDC_STATUS_INTERFACE:
+			usb_cdc_line_rtsdtr_millis = systick_millis_count;
+			usb_cdc_line_rtsdtr = setup.wValue;
+			break;
+#endif
+#ifdef CDC2_STATUS_INTERFACE
+		  case CDC2_STATUS_INTERFACE:
+			usb_cdc2_line_rtsdtr_millis = systick_millis_count;
+			usb_cdc2_line_rtsdtr = setup.wValue;
+			break;
+#endif
+#ifdef CDC3_STATUS_INTERFACE
+		  case CDC3_STATUS_INTERFACE:
+			usb_cdc3_line_rtsdtr_millis = systick_millis_count;
+			usb_cdc3_line_rtsdtr = setup.wValue;
+			break;
+#endif
+		}
 		//serial_print("set control line state\n");
 		break;
+#ifdef CDC_STATUS_INTERFACE
 	  case 0x2321: // CDC_SEND_BREAK
 		break;
 	  case 0x2021: // CDC_SET_LINE_CODING
 		//serial_print("set coding, waiting...\n");
 		return;
+#endif
+
+#if defined(MTP_INTERFACE)
+	case 0x64A1: // Cancel Request (PTP spec, 5.2.1, page 8)
+		// TODO: required by PTP spec
+		endpoint0_stall();
+		return;
+	case 0x66A1: // Device Reset (PTP spec, 5.2.3, page 10)
+		// TODO: required by PTP spec
+		endpoint0_stall();
+		return;
+	case 0x67A1: // Get Device Statis (PTP spec, 5.2.4, page 10)
+		// For now, always respond with status ok.
+		reply_buffer[0] = 0x4;
+		reply_buffer[1] = 0;
+		reply_buffer[2] = 0x01;
+		reply_buffer[3] = 0x20;
+		data = reply_buffer;
+		datalen = 4;
+		break;
 #endif
 
 // TODO: this does not work... why?
@@ -340,6 +416,90 @@ static void usb_setup(void)
 	  case 0x0A21: // HID SET_IDLE
 		break;
 	  // case 0xC940:
+#endif
+
+#if defined(AUDIO_INTERFACE)
+	  case 0x0B01: // SET_INTERFACE (alternate setting)
+		if (setup.wIndex == AUDIO_INTERFACE+1) {
+			usb_audio_transmit_setting = setup.wValue;
+			if (usb_audio_transmit_setting > 0) {
+				bdt_t *b = &table[index(AUDIO_TX_ENDPOINT, TX, EVEN)];
+				uint8_t state = tx_state[AUDIO_TX_ENDPOINT-1];
+				if (state) b++;
+				if (!(b->desc & BDT_OWN)) {
+					memset(usb_audio_transmit_buffer, 0, 176);
+					b->addr = usb_audio_transmit_buffer;
+					b->desc = (176 << 16) | BDT_OWN;
+					tx_state[AUDIO_TX_ENDPOINT-1] = state ^ 1;
+				}
+			}
+		} else if (setup.wIndex == AUDIO_INTERFACE+2) {
+			usb_audio_receive_setting = setup.wValue;
+		} else {
+			endpoint0_stall();
+			return;
+		}
+		break;
+	  case 0x0A81: // GET_INTERFACE (alternate setting)
+		datalen = 1;
+		data = reply_buffer;
+		if (setup.wIndex == AUDIO_INTERFACE+1) {
+			reply_buffer[0] = usb_audio_transmit_setting;
+		} else if (setup.wIndex == AUDIO_INTERFACE+2) {
+			reply_buffer[0] = usb_audio_receive_setting;
+		} else {
+			endpoint0_stall();
+			return;
+		}
+		break;
+	  case 0x0121: // SET FEATURE
+	  case 0x0221:
+	  case 0x0321:
+	  case 0x0421:
+	  	// handle these on the next packet. See usb_audio_set_feature()
+		return;
+	  case 0x81A1: // GET FEATURE
+	  case 0x82A1:
+	  case 0x83A1:
+	  case 0x84A1:
+	  	if (usb_audio_get_feature(&setup, reply_buffer, &datalen)) {
+	  		data = reply_buffer;
+	  	}
+	  	else {
+	  		endpoint0_stall();
+	  		return;
+	  	}
+		break;
+
+	  case 0x81A2: // GET_CUR (wValue=0, wIndex=interface, wLength=len)
+		if (setup.wLength >= 3) {
+			reply_buffer[0] = 44100 & 255;
+			reply_buffer[1] = 44100 >> 8;
+			reply_buffer[2] = 0;
+			datalen = 3;
+			data = reply_buffer;
+		} else {
+			endpoint0_stall();
+			return;
+		}
+		break;
+#endif
+
+#if defined(MULTITOUCH_INTERFACE)
+	  case 0x01A1:
+		if (setup.wValue == 0x0300 && setup.wIndex == MULTITOUCH_INTERFACE) {
+			reply_buffer[0] = MULTITOUCH_FINGERS;
+			data = reply_buffer;
+			datalen = 1;
+		} else if (setup.wValue == 0x0100 && setup.wIndex == MULTITOUCH_INTERFACE) {
+			memset(reply_buffer, 0, 8);
+			data = reply_buffer;
+			datalen = 8;
+		} else {
+			endpoint0_stall();
+			return;
+		}
+		break;
 #endif
 	  default:
 		endpoint0_stall();
@@ -456,21 +616,39 @@ static void usb_control(uint32_t stat)
 	case 0x01:  // OUT transaction received from host
 	case 0x02:
 		//serial_print("PID=OUT\n");
-#ifdef CDC_STATUS_INTERFACE
 		if (setup.wRequestAndType == 0x2021 /*CDC_SET_LINE_CODING*/) {
 			int i;
-			uint8_t *dst = (uint8_t *)usb_cdc_line_coding;
-			//serial_print("set line coding ");
-			for (i=0; i<7; i++) {
-				//serial_phex(*buf);
-				*dst++ = *buf++;
+			uint32_t *line_coding = NULL;
+			switch (setup.wIndex) {
+#ifdef CDC_STATUS_INTERFACE
+			  case CDC_STATUS_INTERFACE:
+				line_coding = usb_cdc_line_coding;
+				break;
+#endif
+#ifdef CDC2_STATUS_INTERFACE
+			  case CDC2_STATUS_INTERFACE:
+				line_coding = usb_cdc2_line_coding;
+				break;
+#endif
+#ifdef CDC3_STATUS_INTERFACE
+			  case CDC3_STATUS_INTERFACE:
+				line_coding = usb_cdc3_line_coding;
+				break;
+#endif
 			}
-			//serial_phex32(usb_cdc_line_coding[0]);
-			//serial_print("\n");
-			if (usb_cdc_line_coding[0] == 134) usb_reboot_timer = 15;
+			if (line_coding) {
+				uint8_t *dst = (uint8_t *)line_coding;
+				//serial_print("set line coding ");
+				for (i=0; i<7; i++) {
+					//serial_phex(*buf);
+					*dst++ = *buf++;
+				}
+				//serial_phex32(line_coding[0]);
+				//serial_print("\n");
+				if (line_coding[0] == 134) usb_reboot_timer = 15;
+			}
 			endpoint0_transmit(NULL, 0);
 		}
-#endif
 #ifdef KEYBOARD_INTERFACE
 		if (setup.word1 == 0x02000921 && setup.word2 == ((1<<16)|KEYBOARD_INTERFACE)) {
 			keyboard_leds = buf[0];
@@ -478,9 +656,17 @@ static void usb_control(uint32_t stat)
 		}
 #endif
 #ifdef SEREMU_INTERFACE
-		if (setup.word1 == 0x03000921 && setup.word2 == ((4<<16)|SEREMU_INTERFACE)
-		  && buf[0] == 0xA9 && buf[1] == 0x45 && buf[2] == 0xC2 && buf[3] == 0x6B) {
-			usb_reboot_timer = 5;
+		if (setup.word1 == 0x03000921 && setup.word2 == ((4<<16)|SEREMU_INTERFACE)) {
+			if (buf[0] == 0xA9 && buf[1] == 0x45 && buf[2] == 0xC2 && buf[3] == 0x6B) {
+				usb_reboot_timer = 5;
+			} else {
+				usb_seremu_online = 1;
+			}
+			endpoint0_transmit(NULL, 0);
+		}
+#endif
+#ifdef AUDIO_INTERFACE
+		if (usb_audio_set_feature(&setup, buf)) {
 			endpoint0_transmit(NULL, 0);
 		}
 #endif
@@ -576,6 +762,9 @@ uint32_t usb_tx_byte_count(uint32_t endpoint)
 	return usb_queue_byte_count(tx_first[endpoint]);
 }
 
+// Discussion about using this function and USB transmit latency
+// https://forum.pjrc.com/threads/58663?p=223513&viewfull=1#post223513
+//
 uint32_t usb_tx_packet_count(uint32_t endpoint)
 {
 	const usb_packet_t *p;
@@ -607,6 +796,9 @@ void usb_rx_memory(usb_packet_t *packet)
 	//serial_print("rx_mem:");
 	__disable_irq();
 	for (i=1; i <= NUM_ENDPOINTS; i++) {
+#ifdef AUDIO_INTERFACE
+		if (i == AUDIO_RX_ENDPOINT) continue;
+#endif
 		if (*cfg++ & USB_ENDPT_EPRXEN) {
 			if (table[index(i, RX, EVEN)].desc == 0) {
 				table[index(i, RX, EVEN)].addr = packet->buf;
@@ -682,7 +874,26 @@ void usb_tx(uint32_t endpoint, usb_packet_t *packet)
 	__enable_irq();
 }
 
+void usb_tx_isochronous(uint32_t endpoint, void *data, uint32_t len)
+{
+	bdt_t *b = &table[index(endpoint, TX, EVEN)];
+	uint8_t next, state;
 
+	endpoint--;
+	if (endpoint >= NUM_ENDPOINTS) return;
+	__disable_irq();
+	state = tx_state[endpoint];
+	if (state == 0) {
+		next = 1;
+	} else {
+		b++;
+		next = 0;
+	}
+	tx_state[endpoint] = next;
+	b->addr = data;
+	b->desc = (len << 16) | BDT_OWN;
+	__enable_irq();
+}
 
 
 
@@ -691,6 +902,7 @@ void _reboot_Teensyduino_(void)
 {
 	// TODO: initialize R0 with a code....
 	__asm__ volatile("bkpt");
+	__builtin_unreachable();
 }
 
 
@@ -706,7 +918,7 @@ void usb_isr(void)
 	restart:
 	status = USB0_ISTAT;
 
-	if ((status & USB_INTEN_SOFTOKEN /* 04 */ )) {
+	if ((status & USB_ISTAT_SOFTOK /* 04 */ )) {
 		if (usb_configuration) {
 			t = usb_reboot_timer;
 			if (t) {
@@ -718,6 +930,20 @@ void usb_isr(void)
 			if (t) {
 				usb_cdc_transmit_flush_timer = --t;
 				if (t == 0) usb_serial_flush_callback();
+			}
+#endif
+#ifdef CDC2_DATA_INTERFACE
+			t = usb_cdc2_transmit_flush_timer;
+			if (t) {
+				usb_cdc2_transmit_flush_timer = --t;
+				if (t == 0) usb_serial2_flush_callback();
+			}
+#endif
+#ifdef CDC3_DATA_INTERFACE
+			t = usb_cdc3_transmit_flush_timer;
+			if (t) {
+				usb_cdc3_transmit_flush_timer = --t;
+				if (t == 0) usb_serial3_flush_callback();
 			}
 #endif
 #ifdef SEREMU_INTERFACE
@@ -733,8 +959,11 @@ void usb_isr(void)
 #ifdef FLIGHTSIM_INTERFACE
 			usb_flightsim_flush_callback();
 #endif
+#ifdef MULTITOUCH_INTERFACE
+			usb_touchscreen_update_callback();
+#endif
 		}
-		USB0_ISTAT = USB_INTEN_SOFTOKEN;
+		USB0_ISTAT = USB_ISTAT_SOFTOK;
 	}
 
 	if ((status & USB_ISTAT_TOKDNE /* 08 */ )) {
@@ -762,6 +991,27 @@ void usb_isr(void)
 #endif
 			endpoint--;	// endpoint is index to zero-based arrays
 
+#ifdef AUDIO_INTERFACE
+			if ((endpoint == AUDIO_TX_ENDPOINT-1) && (stat & 0x08)) {
+				unsigned int len;
+				len = usb_audio_transmit_callback();
+				if (len > 0) {
+					b = (bdt_t *)((uint32_t)b ^ 8);
+					b->addr = usb_audio_transmit_buffer;
+					b->desc = (len << 16) | BDT_OWN;
+					tx_state[endpoint] ^= 1;
+				}
+			} else if ((endpoint == AUDIO_RX_ENDPOINT-1) && !(stat & 0x08)) {
+				usb_audio_receive_callback(b->desc >> 16);
+				b->addr = usb_audio_receive_buffer;
+				b->desc = (AUDIO_RX_SIZE << 16) | BDT_OWN;
+			} else if ((endpoint == AUDIO_SYNC_ENDPOINT-1) && (stat & 0x08)) {
+				b = (bdt_t *)((uint32_t)b ^ 8);
+				b->addr = &usb_audio_sync_feedback;
+				b->desc = (3 << 16) | BDT_OWN;
+				tx_state[endpoint] ^= 1;
+			} else
+#endif
 			if (stat & 0x08) { // transmit
 				usb_free(packet);
 				packet = tx_first[endpoint];
@@ -785,7 +1035,8 @@ void usb_isr(void)
 					  default:
 						break;
 					}
-					b->desc = BDT_DESC(packet->len, ((uint32_t)b & 8) ? DATA1 : DATA0);
+					b->desc = BDT_DESC(packet->len,
+						((uint32_t)b & 8) ? DATA1 : DATA0);
 				} else {
 					//serial_print("tx no packet\n");
 					switch (tx_state[endpoint]) {
@@ -826,17 +1077,18 @@ void usb_isr(void)
 					}
 					rx_last[endpoint] = packet;
 					usb_rx_byte_count_data[endpoint] += packet->len;
-					// TODO: implement a per-endpoint maximum # of allocated packets
-					// so a flood of incoming data on 1 endpoint doesn't starve
-					// the others if the user isn't reading it regularly
+					// TODO: implement a per-endpoint maximum # of allocated
+					// packets, so a flood of incoming data on 1 endpoint
+					// doesn't starve the others if the user isn't reading
+					// it regularly
 					packet = usb_malloc();
 					if (packet) {
 						b->addr = packet->buf;
-						b->desc = BDT_DESC(64, ((uint32_t)b & 8) ? DATA1 : DATA0);
+						b->desc = BDT_DESC(64,
+							((uint32_t)b & 8) ? DATA1 : DATA0);
 					} else {
 						//serial_print("starving ");
 						//serial_phex(endpoint + 1);
-						//serial_print(((uint32_t)b & 8) ? ",odd\n" : ",even\n");
 						b->desc = 0;
 						usb_rx_memory_needed++;
 					}
@@ -844,9 +1096,6 @@ void usb_isr(void)
 					b->desc = BDT_DESC(64, ((uint32_t)b & 8) ? DATA1 : DATA0);
 				}
 			}
-
-
-
 
 		}
 		USB0_ISTAT = USB_ISTAT_TOKDNE;
@@ -927,7 +1176,7 @@ void usb_init(void)
 
 	usb_init_serialnumber();
 
-	for (i=0; i <= NUM_ENDPOINTS*4; i++) {
+	for (i=0; i < (NUM_ENDPOINTS+1)*4; i++) {
 		table[i].desc = 0;
 		table[i].addr = 0;
 	}
@@ -938,10 +1187,18 @@ void usb_init(void)
 	// assume 48 MHz clock already running
 	// SIM - enable clock
 	SIM_SCGC4 |= SIM_SCGC4_USBOTG;
-
+#ifdef HAS_KINETIS_MPU
+	MPU_RGDAAC0 |= 0x03000000;
+#endif
+#if F_CPU == 180000000 || F_CPU == 216000000 || F_CPU == 256000000
+	// if using IRC48M, turn on the USB clock recovery hardware
+	USB0_CLK_RECOVER_IRC_EN = USB_CLK_RECOVER_IRC_EN_IRC_EN | USB_CLK_RECOVER_IRC_EN_REG_EN;
+	USB0_CLK_RECOVER_CTRL = USB_CLK_RECOVER_CTRL_CLOCK_RECOVER_EN |
+		USB_CLK_RECOVER_CTRL_RESTART_IFRTRIM_EN;
+#endif
 	// reset USB module
-	USB0_USBTRC0 = USB_USBTRC_USBRESET;
-	while ((USB0_USBTRC0 & USB_USBTRC_USBRESET) != 0) ; // wait for reset to end
+	//USB0_USBTRC0 = USB_USBTRC_USBRESET;
+	//while ((USB0_USBTRC0 & USB_USBTRC_USBRESET) != 0) ; // wait for reset to end
 
 	// set desc table base addr
 	USB0_BDTPAGE1 = ((uint32_t)table) >> 8;
@@ -953,7 +1210,7 @@ void usb_init(void)
 	USB0_ERRSTAT = 0xFF;
 	USB0_OTGISTAT = 0xFF;
 
-	USB0_USBTRC0 |= 0x40; // undocumented bit
+	//USB0_USBTRC0 |= 0x40; // undocumented bit
 
 	// enable USB
 	USB0_CTL = USB_CTL_USBENSOFEN;

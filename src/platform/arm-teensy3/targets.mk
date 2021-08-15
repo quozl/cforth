@@ -4,13 +4,13 @@ SRC=$(TOPDIR)/src
 
 # Target compiler definitions
 CROSS ?= arm-none-eabi-
-CPU_VARIANT=-mthumb -mcpu=cortex-m4
+CPU_VARIANT=-mthumb -mcpu=cortex-m4 --specs=nano.specs 
 include $(SRC)/cpu/arm/compiler.mk
 
 include $(SRC)/common.mk
 include $(SRC)/cforth/targets.mk
 
-DEFS += -DF_CPU=48000000 -DUSB_SERIAL -DLAYOUT_US_ENGLISH -D__MK20DX256__ -DARDUINO=105 -DTEENSYDUINO=118
+DEFS += -DF_CPU=48000000 -DUSB_SERIAL -DLAYOUT_US_ENGLISH -D__MK20DX256__ -DARDUINO=10805 -DTEENSYDUINO=144
 
 DICTIONARY=ROM
 DICTSIZE=0x2000
@@ -24,7 +24,7 @@ TCFLAGS += -Os
 # Omit unreachable functions from output
 
 TCFLAGS += -ffunction-sections -fdata-sections $(DEFS)
-TLFLAGS += --gc-sections -Map main.map
+TLFLAGS += --defsym=__rtc_localtime=0 --gc-sections -Map main.map
 
 # VPATH += $(SRC)/cpu/arm
 VPATH += $(SRC)/lib
@@ -36,7 +36,7 @@ INCS += -I$(SRC)/platform/arm-teensy3
 
 # Platform-specific object files for low-level startup and platform I/O
 
-PLAT_OBJS += tmk20dx128.o ttmain.o tconsoleio.o tusb_dev.o tusb_mem.o tusb_desc.o tusb_serial.o tanalog.o tpins_teensy.o teeprom.o
+PLAT_OBJS += tmk20dx128.o tser_print.o ttmain.o tconsoleio.o tusb_dev.o tusb_mem.o tusb_desc.o tusb_serial.o tanalog.o tpins_teensy.o teeprom.o
 
 # Object files for the Forth system and application-specific extensions
 

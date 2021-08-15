@@ -28,28 +28,48 @@
  * SOFTWARE.
  */
 
-#ifndef _usb_mem_h_
-#define _usb_mem_h_
+#include "kinetis.h"
+#include "ser_print.h"
 
-#include <stdint.h>
+// Simple polling-only Serial1 support for Teensy-LC
 
-typedef struct usb_packet_struct {
-	uint16_t len;
-	uint16_t index;
-	struct usb_packet_struct *next;
-	uint8_t buf[64];
-} usb_packet_t;
+// this is really only useful for extremely low-level troubleshooting
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-usb_packet_t * usb_malloc(void);
-void usb_free(usb_packet_t *p);
-
-#ifdef __cplusplus
+void ser_write(uint8_t c)
+{
+        while ((UART0_S1 & UART_S1_TDRE) == 0) /* wait */ ;
+        UART0_D = c;
 }
-#endif
 
+void ser_print(const char *p)
+{
+        while (*p) {
+                char c = *p++;
+                if (c == '\n') ser_write('\r');
+                ser_write(c);
+        }
+}
 
-#endif
+static void ser_print_hex1(unsigned int n)
+{
+        n &= 15;
+        if (n < 10) {
+                ser_write('0' + n);
+        } else {
+                ser_write('A' - 10 + n);
+        }
+}
+
+void ser_print_hex(unsigned int n)
+{
+	ser_print_hex1(n >> 4);
+	ser_print_hex1(n);
+}
+
+void ser_print_hex32(unsigned int n)
+{
+	ser_print_hex(n >> 24);
+	ser_print_hex(n >> 16);
+	ser_print_hex(n >> 8);
+	ser_print_hex(n);
+}

@@ -28,28 +28,13 @@
  * SOFTWARE.
  */
 
-#ifndef _usb_mem_h_
-#define _usb_mem_h_
-
-#include <stdint.h>
-
-typedef struct usb_packet_struct {
-	uint16_t len;
-	uint16_t index;
-	struct usb_packet_struct *next;
-	uint8_t buf[64];
-} usb_packet_t;
-
 #ifdef __cplusplus
-extern "C" {
+extern "C"{
 #endif
-
-usb_packet_t * usb_malloc(void);
-void usb_free(usb_packet_t *p);
-
+void ser_print(const char *p);
+void ser_print_hex(unsigned int n);
+void ser_print_hex32(unsigned int n);
 #ifdef __cplusplus
-}
+} // extern "C"
 #endif
 
-
-#endif
